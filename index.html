@@ -281,6 +281,32 @@
     align-items: center;
     flex-shrink: 0;
   }
+  .matrix-ribbon {
+    background: #f8fafc;
+    border-bottom: 1px solid var(--border);
+    padding: 6px 12px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    overflow-x: auto;
+    flex-shrink: 0;
+  }
+  .ribbon-chip {
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #334155;
+    cursor: pointer;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .ribbon-chip:hover { background: #f1f5f9; border-color: var(--accent); }
+  
   .matrix-palette {
     background: #f1f5f9;
     border-bottom: 1px solid var(--border);
@@ -318,7 +344,7 @@
     border: 1px solid #cbd5e1;
     padding: 6px 4px;
     text-align: center;
-    min-width: 44px;
+    min-width: 52px;
   }
   .matrix-table th {
     background: #f8fafc;
@@ -359,9 +385,42 @@
     border-color: #334155;
     background: #0f172a;
     color: #ffffff;
-    padding: 6px 2px;
-    font-size: 0.72rem;
+    padding: 5px 2px;
+    font-size: 0.7rem;
     line-height: 1.25;
+    cursor: pointer;
+  }
+  .matrix-footer-row td:hover {
+    background: #1e293b;
+  }
+
+  .stepper-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+  }
+  .stepper-btn {
+    width: 34px;
+    height: 34px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    background: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .stepper-val {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--primary);
   }
 
   @media (max-width: 768px) {
@@ -450,7 +509,6 @@
 
         <!-- Admin Master Controls Row -->
         <div style="display: none; margin-top: 10px; flex-direction: column; gap: 8px;" id="adminDataControls">
-          <!-- Roster Builder & Month Creation Row -->
           <div style="display: flex; gap: 8px;">
             <button class="btn" style="flex:1; background:#dbeafe; color:#1d4ed8; border-color:#bfdbfe; font-weight:bold; font-size:0.82rem;" onclick="openCreateMonthModal()">➕ Create Next Month</button>
             <button class="btn" style="flex:1; background:#f3e8ff; color:#6b21a8; border-color:#e9d5ff; font-weight:bold; font-size:0.82rem;" onclick="openMatrixBuilder()">🛠️ Open Matrix Builder</button>
@@ -546,7 +604,7 @@
   </div>
 </div>
 
-<!-- Full Screen Interactive Matrix Roster Builder -->
+<!-- Full Screen Interactive Matrix Roster Builder with Dynamic Palette -->
 <div id="matrixBuilderModal">
   <div class="matrix-header">
     <div style="display:flex; align-items:center; gap:8px;">
@@ -559,17 +617,19 @@
     </div>
   </div>
 
+  <!-- Weekly Target Setup Ribbon -->
+  <div class="matrix-ribbon" id="matrixWeeklyRibbon">
+    <span style="font-size:0.75rem; font-weight:bold; color:#64748b; margin-right:4px;">Weekly WD/CA Presets:</span>
+  </div>
+
+  <!-- Dynamic Shift Paint Palette Toolbar -->
   <div class="matrix-palette">
     <span style="font-size:0.8rem; font-weight:bold; color:#475569; margin-right:4px;">Shift Paint Tool:</span>
-    <button class="palette-btn selected" data-code="WD1" onclick="selectPaletteCode(this, 'WD1')" style="background:#93c5fd;">WD1</button>
-    <button class="palette-btn" data-code="WD" onclick="selectPaletteCode(this, 'WD')" style="background:#86efac;">WD</button>
-    <button class="palette-btn" data-code="WD2" onclick="selectPaletteCode(this, 'WD2')" style="background:#86efac;">WD2</button>
-    <button class="palette-btn" data-code="WDP" onclick="selectPaletteCode(this, 'WDP')" style="background:#c084fc;">WDP</button>
-    <button class="palette-btn" data-code="DO" onclick="selectPaletteCode(this, 'DO')" style="background:#cbd5e1;">DO</button>
-    <button class="palette-btn" data-code="AL" onclick="selectPaletteCode(this, 'AL')" style="background:#fbcfe8;">AL</button>
-    <button class="palette-btn" data-code="SICK" onclick="selectPaletteCode(this, 'SICK')" style="background:#fca5a5;">SICK</button>
-    <button class="palette-btn" data-code="TU" onclick="selectPaletteCode(this, 'TU')" style="background:#fcd34d;">TU</button>
-    <button class="palette-btn" data-code="UT" onclick="selectPaletteCode(this, 'UT')" style="background:#f472b6;">UT</button>
+    <div id="paletteButtonContainer" style="display:flex; gap:6px; align-items:center;"></div>
+    <div style="display:flex; gap:4px; margin-left:8px; border-left:1px solid #cbd5e1; padding-left:8px;">
+      <button class="palette-btn" style="background:#e0f2fe; color:#0369a1; border-color:#bae6fd;" onclick="openAddCodeModal()">➕ Add Code</button>
+      <button class="palette-btn" style="background:#fee2e2; color:#b91c1c; border-color:#fca5a5;" onclick="openRemoveCodeModal()">🗑️ Remove Code</button>
+    </div>
   </div>
 
   <div class="matrix-table-wrap">
@@ -581,13 +641,118 @@
   </div>
 </div>
 
+<!-- Add Shift Code Modal -->
+<div id="addCodeModal" class="modal-overlay">
+  <div class="card" style="width: 100%; max-width: 320px; margin: auto;">
+    <h2 style="border:none; margin-bottom: 5px;">➕ Add Shift Code</h2>
+    <p style="font-size: 0.8rem; color: #64748b; margin-top: 0; margin-bottom: 12px;">Add a new shift code to your palette and roster system.</p>
+
+    <label style="font-size:0.8rem; font-weight:bold; color:#475569;">Shift Code (e.g. STBY, SIM1, MNT):</label>
+    <input type="text" id="newCodeInput" class="btn" style="margin-top:4px; margin-bottom:10px; text-transform:uppercase; font-weight:bold;" placeholder="CODE">
+
+    <label style="font-size:0.8rem; font-weight:bold; color:#475569;">Time / Duty Description:</label>
+    <input type="text" id="newCodeDescInput" class="btn" style="margin-top:4px; margin-bottom:10px;" placeholder="e.g. 09:00 - 18:00 or Standby Duty">
+
+    <label style="font-size:0.8rem; font-weight:bold; color:#475569;">Badge Color:</label>
+    <input type="color" id="newCodeColorInput" value="#e2e8f0" style="width:100%; height:38px; border-radius:6px; border:1px solid #cbd5e1; margin-top:4px; margin-bottom:16px; cursor:pointer;">
+
+    <div style="display:flex; gap:8px;">
+      <button class="btn" style="flex:1;" onclick="closeAddCodeModal()">Cancel</button>
+      <button class="btn" style="flex:1; background:var(--accent); color:#fff; border-color:var(--accent); font-weight:bold;" onclick="executeAddShiftCode()">Save Code</button>
+    </div>
+  </div>
+</div>
+
+<!-- Remove Shift Code Modal -->
+<div id="removeCodeModal" class="modal-overlay">
+  <div class="card" style="width: 100%; max-width: 320px; margin: auto;">
+    <h2 style="border:none; margin-bottom: 5px;">🗑️ Remove Shift Code</h2>
+    <p style="font-size: 0.8rem; color: #64748b; margin-top: 0; margin-bottom: 12px;">Remove a custom shift code from your paint palette.</p>
+
+    <label style="font-size:0.8rem; font-weight:bold; color:#475569;">Select Code to Remove:</label>
+    <select id="removeCodeSelect" class="btn" style="margin-top:4px; margin-bottom:16px;"></select>
+
+    <div style="display:flex; gap:8px;">
+      <button class="btn" style="flex:1;" onclick="closeRemoveCodeModal()">Cancel</button>
+      <button class="btn btn-danger" style="flex:1; font-weight:bold;" onclick="executeRemoveShiftCode()">Remove</button>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Day Target Stepper Modal -->
+<div id="targetStepperModal" class="modal-overlay">
+  <div class="card" style="width: 100%; max-width: 320px; margin: auto;">
+    <h2 style="border:none; margin-bottom: 5px;">🎯 Manning Requirement</h2>
+    <p style="font-size: 0.8rem; color: #64748b; margin-top: 0; margin-bottom: 12px;">
+      Setting targets for <b id="stepperDayDisplay" style="color:var(--primary);"></b>
+    </p>
+
+    <div class="stepper-box">
+      <span style="font-size:0.9rem; font-weight:bold; color:#166534;">WD Target:</span>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <button class="stepper-btn" onclick="adjustStepperValue('wd', -1)">-</button>
+        <span class="stepper-val" id="stepperWdVal">6</span>
+        <button class="stepper-btn" onclick="adjustStepperValue('wd', 1)">+</button>
+      </div>
+    </div>
+
+    <div class="stepper-box">
+      <span style="font-size:0.9rem; font-weight:bold; color:#854d0e;">CA Target:</span>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <button class="stepper-btn" onclick="adjustStepperValue('ca', -1)">-</button>
+        <span class="stepper-val" id="stepperCaVal">2</span>
+        <button class="stepper-btn" onclick="adjustStepperValue('ca', 1)">+</button>
+      </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:6px; margin-top:14px;">
+      <button class="btn" style="background:var(--accent); color:#fff; border-color:var(--accent); font-weight:bold;" onclick="applyStepperTarget(false)">Apply to This Day Only</button>
+      <button class="btn" style="background:#f1f5f9; font-weight:bold;" onclick="applyStepperTarget(true)">Apply to Entire Week</button>
+      <button class="btn" onclick="closeTargetStepperModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Weekly Batch Target Preset Modal -->
+<div id="weeklyPresetModal" class="modal-overlay">
+  <div class="card" style="width: 100%; max-width: 320px; margin: auto;">
+    <h2 style="border:none; margin-bottom: 5px;">📅 Set Week <span id="presetWeekNumDisplay"></span> Targets</h2>
+    <p style="font-size: 0.8rem; color: #64748b; margin-top: 0; margin-bottom: 12px;">
+      Applies to all weekdays in <b id="presetWeekRangeDisplay"></b>
+    </p>
+
+    <div class="stepper-box">
+      <span style="font-size:0.9rem; font-weight:bold; color:#166534;">WD Target:</span>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <button class="stepper-btn" onclick="adjustWeeklyPresetValue('wd', -1)">-</button>
+        <span class="stepper-val" id="presetWdVal">6</span>
+        <button class="stepper-btn" onclick="adjustWeeklyPresetValue('wd', 1)">+</button>
+      </div>
+    </div>
+
+    <div class="stepper-box">
+      <span style="font-size:0.9rem; font-weight:bold; color:#854d0e;">CA Target:</span>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <button class="stepper-btn" onclick="adjustWeeklyPresetValue('ca', -1)">-</button>
+        <span class="stepper-val" id="presetCaVal">2</span>
+        <button class="stepper-btn" onclick="adjustWeeklyPresetValue('ca', 1)">+</button>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:8px; margin-top:14px;">
+      <button class="btn" style="flex:1;" onclick="closeWeeklyPresetModal()">Cancel</button>
+      <button class="btn" style="flex:1; background:var(--accent); color:#fff; border-color:var(--accent); font-weight:bold;" onclick="applyWeeklyPreset()">Apply</button>
+    </div>
+  </div>
+</div>
+
 <!-- Override Modal (Admin Only - Single Day) -->
 <div id="editModal" class="modal-overlay">
   <div class="card" style="width: 100%; max-width: 320px; margin: auto;">
     <h2 style="border:none; margin-bottom: 5px;">✏️ Override Shift</h2>
     <p style="font-size: 0.85rem; color: #64748b; margin-top: 0; margin-bottom: 12px;">Modifying Day <span id="editDayDisplay" style="font-weight:bold; color:var(--primary);"></span></p>
     
-    <label style="font-size:0.8rem; font-weight:bold; color:#475569;">Shift Code (e.g. WD1, DO, SICK):</label>
+    <label style="font-size:0.8rem; font-weight:bold; color:#475569;">Shift Code (e.g. WD, CA, DO, SICK):</label>
     <input type="text" id="editShiftInput" class="btn" style="margin-top:4px; margin-bottom:16px; text-transform:uppercase; font-weight:bold;" placeholder="Enter Shift Code">
     <div style="display:flex; gap:8px;">
       <button class="btn" style="flex:1;" onclick="closeEditModal()">Cancel</button>
@@ -628,7 +793,7 @@
       <option value="weekends">Weekends Only (Sat - Sun)</option>
     </select>
 
-    <label style="font-size:0.8rem; font-weight:bold; color:#475569;">New Shift Code (e.g. WD1, DO, SICK, AL):</label>
+    <label style="font-size:0.8rem; font-weight:bold; color:#475569;">New Shift Code (e.g. WD, CA, DO, AL):</label>
     <input type="text" id="batchShiftCode" class="btn" style="margin-top:4px; margin-bottom:18px; text-transform:uppercase; font-weight:bold;" placeholder="Shift Code">
 
     <div style="display:flex; gap:8px;">
@@ -844,7 +1009,8 @@ const docRef = db.collection("rosterSystem").doc("activeRosters");
 
 let currentRole = null;
 let rostersByMonth = {};
-let rosterStatusByMonth = {}; // 'draft' or 'published'
+let rosterStatusByMonth = {};
+let monthlyManningTargets = {};
 let bulletinBoardText = "";
 let leaveRequests = [];
 let activeBroadcast = null;
@@ -852,8 +1018,10 @@ let activeEditDay = null;
 let isEditMode = false;
 let isEditingNotes = false;
 let isUploadingRoster = false;
-let selectedPaletteShift = "WD1";
+let selectedPaletteShift = "WD";
 let matrixDraftCopy = null;
+let activeStepperDay = null;
+let activePresetWeek = null;
 
 let shiftMap = {
   "WD": "08:30 - 17:18", "WD2": "08:30 - 17:18", "CA": "08:30 - 17:18", "WDE": "08:30 - 17:18",
@@ -863,8 +1031,14 @@ let shiftMap = {
   "SICK": "Sick Leave", "AL": "Annual Leave"
 };
 
-const DEFAULT_COLORS = { "WD": "#86efac", "WD1": "#93c5fd", "WD2": "#86efac", "CA": "#fde047", "DO": "#cbd5e1", "OFF": "#cbd5e1", "SICK": "#fca5a5", "AL": "#fbcfe8", "UT": "#f472b6", "TU": "#fcd34d", "WDP": "#c084fc" };
+const DEFAULT_COLORS = { 
+  "WD": "#86efac", "WD1": "#93c5fd", "WD2": "#86efac", "CA": "#fde047", 
+  "DO": "#cbd5e1", "OFF": "#cbd5e1", "SICK": "#fca5a5", "AL": "#fbcfe8", 
+  "UT": "#f472b6", "TU": "#fcd34d", "WDP": "#c084fc", "WDE": "#cbd5e1", "CR": "#fed7aa" 
+};
 let shiftColors = { ...DEFAULT_COLORS };
+
+let paletteCodes = ["WD", "CA", "WD1", "WD2", "WDP", "DO", "AL", "SICK", "TU", "UT"];
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -902,6 +1076,9 @@ docRef.get().then((doc) => {
       currentStaffPasscode = data.authConfig.staffPasscode || currentStaffPasscode;
       currentAdminPasscode = data.authConfig.adminPasscode || currentAdminPasscode;
       currentSessionVersion = data.authConfig.sessionVersion || 1;
+    }
+    if (data.paletteCodes) {
+      paletteCodes = data.paletteCodes;
     }
   }
 }).catch(() => {});
@@ -1034,10 +1211,12 @@ function initCloudListener() {
       const data = doc.data();
       rostersByMonth = data.rostersByMonth || {};
       rosterStatusByMonth = data.rosterStatusByMonth || {};
+      monthlyManningTargets = data.monthlyManningTargets || {};
       shiftMap = { ...shiftMap, ...(data.shiftMap || {}) };
       bulletinBoardText = data.generalNotes || "";
       leaveRequests = data.leaveRequests || [];
       activeBroadcast = data.activeBroadcast || null;
+      if (data.paletteCodes) paletteCodes = data.paletteCodes;
       
       if (data.authConfig) {
         currentStaffPasscode = data.authConfig.staffPasscode || currentStaffPasscode;
@@ -1058,12 +1237,14 @@ function initCloudListener() {
       document.getElementById("cloudStatus").innerText = "Online • Ready for initial upload.";
       rostersByMonth = {};
       rosterStatusByMonth = {};
+      monthlyManningTargets = {};
       activeBroadcast = null;
     }
     
     refreshUIAfterCloudSync();
     renderLeaveRequests();
     evaluateActiveBroadcast();
+    renderPaletteButtons();
   }, (err) => {
     document.getElementById("cloudStatus").innerText = `Cloud Error: ${err.message}`;
   });
@@ -1178,7 +1359,6 @@ function updateDashboard() {
     }
   }
 
-  // Feature 4: Staff Access Gate for Draft Rosters
   if (currentRole === 'staff' && isDraft) {
     document.getElementById("calendarGrid").innerHTML = `
       <div style="grid-column: 1 / -1; padding: 40px 10px; text-align: center; color: #94a3b8; font-style: italic;">
@@ -1217,7 +1397,7 @@ function updateDashboard() {
   }
 }
 
-// --- FEATURE 1: CREATE NEXT MONTH GENERATOR ---
+// --- CREATE NEXT MONTH GENERATOR ---
 function openCreateMonthModal() {
   if (currentRole !== 'admin') return;
   const now = new Date();
@@ -1249,7 +1429,6 @@ function executeCreateMonth() {
   const [yyyy, mm] = targetMonth.split("-").map(Number);
   const totalDays = new Date(yyyy, mm, 0).getDate();
 
-  // Find a base roster to extract staff members from
   let sourceMonthKey = document.getElementById("monthSelect").value;
   let baseStaffList = rostersByMonth[sourceMonthKey] || [];
 
@@ -1264,7 +1443,6 @@ function executeCreateMonth() {
   }
 
   let generatedRoster = [];
-
   baseStaffList.forEach(staff => {
     let newShifts = [];
     for (let d = 0; d < totalDays; d++) {
@@ -1281,7 +1459,6 @@ function executeCreateMonth() {
     });
   });
 
-  // Feature 1: Automatically bake in pre-approved leave requests for this future month
   leaveRequests.forEach(req => {
     if (req.status === 'approved') {
       let [sY, sM, sD] = req.startDate.split('-').map(Number);
@@ -1301,16 +1478,30 @@ function executeCreateMonth() {
     }
   });
 
+  let newTargets = {};
+  let sourceTargets = monthlyManningTargets[sourceMonthKey] || {};
+  for (let d = 1; d <= totalDays; d++) {
+    let dayOfWeek = new Date(yyyy, mm - 1, d).getDay();
+    let isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+    if (sourceTargets[d]) {
+      newTargets[d] = { wd: sourceTargets[d].wd || (isWeekend ? 2 : 6), ca: sourceTargets[d].ca || (isWeekend ? 0 : 2) };
+    } else {
+      newTargets[d] = { wd: isWeekend ? 2 : 6, ca: isWeekend ? 0 : 2 };
+    }
+  }
+
   rostersByMonth[targetMonth] = generatedRoster;
-  rosterStatusByMonth[targetMonth] = 'draft'; // Feature 4: Initialize as Draft
+  rosterStatusByMonth[targetMonth] = 'draft';
+  monthlyManningTargets[targetMonth] = newTargets;
 
   docRef.update({
     rostersByMonth: rostersByMonth,
     rosterStatusByMonth: rosterStatusByMonth,
+    monthlyManningTargets: monthlyManningTargets,
     lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
   }).then(() => {
     closeCreateMonthModal();
-    alert(`Draft roster for ${targetMonth} initialized with ${generatedRoster.length} staff members!`);
+    alert(`Draft roster for ${targetMonth} initialized!`);
     refreshUIAfterCloudSync();
     document.getElementById("monthSelect").value = targetMonth;
     handleMonthChange();
@@ -1320,7 +1511,6 @@ function executeCreateMonth() {
   });
 }
 
-// --- FEATURE 4: PUBLISH / UNPUBLISH ROSTER ---
 function togglePublishCurrentMonth() {
   if (currentRole !== 'admin') return;
   const monthKey = document.getElementById("monthSelect").value;
@@ -1348,7 +1538,117 @@ function togglePublishCurrentMonth() {
   });
 }
 
-// --- FEATURE 2 & 3: FULL SCREEN INTERACTIVE MATRIX BUILDER & BOTTOM MANNING COUNTERS ---
+// --- DYNAMIC SHIFT PALETTE MANAGEMENT (ADD & REMOVE CODES) ---
+function renderPaletteButtons() {
+  const container = document.getElementById('paletteButtonContainer');
+  if (!container) return;
+  container.innerHTML = "";
+
+  paletteCodes.forEach(code => {
+    let btn = document.createElement('button');
+    btn.className = `palette-btn ${selectedPaletteShift === code ? 'selected' : ''}`;
+    btn.setAttribute('data-code', code);
+    btn.style.backgroundColor = isOffDuty(code) ? "#cbd5e1" : (shiftColors[code] || generatePastel(code));
+    btn.innerText = code;
+    btn.onclick = () => selectPaletteCode(btn, code);
+    container.appendChild(btn);
+  });
+}
+
+function selectPaletteCode(btn, code) {
+  selectedPaletteShift = code;
+  document.querySelectorAll('#paletteButtonContainer .palette-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+
+function openAddCodeModal() {
+  document.getElementById('newCodeInput').value = "";
+  document.getElementById('newCodeDescInput').value = "";
+  document.getElementById('newCodeColorInput').value = "#93c5fd";
+  document.getElementById('addCodeModal').style.display = 'flex';
+}
+
+function closeAddCodeModal() {
+  document.getElementById('addCodeModal').style.display = 'none';
+}
+
+function executeAddShiftCode() {
+  const code = document.getElementById('newCodeInput').value.trim().toUpperCase();
+  const desc = document.getElementById('newCodeDescInput').value.trim();
+  const color = document.getElementById('newCodeColorInput').value;
+
+  if (!code) {
+    alert("Please enter a valid shift code.");
+    return;
+  }
+
+  if (!paletteCodes.includes(code)) {
+    paletteCodes.push(code);
+  }
+  shiftColors[code] = color;
+  saveStaffColors();
+
+  if (desc) {
+    shiftMap[code] = desc;
+  } else if (!shiftMap[code]) {
+    shiftMap[code] = "Duty: " + code;
+  }
+
+  docRef.update({
+    paletteCodes: paletteCodes,
+    shiftMap: shiftMap
+  }).then(() => {
+    closeAddCodeModal();
+    renderPaletteButtons();
+    buildColorPickers();
+    alert(`Shift code "${code}" added to palette!`);
+  }).catch(err => {
+    alert(`Failed to save code: ${err.message}`);
+  });
+}
+
+function openRemoveCodeModal() {
+  const select = document.getElementById('removeCodeSelect');
+  select.innerHTML = "";
+  paletteCodes.forEach(c => {
+    let opt = document.createElement('option');
+    opt.value = c;
+    opt.text = c;
+    select.appendChild(opt);
+  });
+  document.getElementById('removeCodeModal').style.display = 'flex';
+}
+
+function closeRemoveCodeModal() {
+  document.getElementById('removeCodeModal').style.display = 'none';
+}
+
+function executeRemoveShiftCode() {
+  const code = document.getElementById('removeCodeSelect').value;
+  if (!code) return;
+
+  if (code === "WD" || code === "CA" || code === "DO") {
+    alert("Base codes (WD, CA, DO) cannot be removed.");
+    return;
+  }
+
+  if (!confirm(`Remove shift code "${code}" from the paint palette? Existing roster assignments will remain unchanged.`)) return;
+
+  paletteCodes = paletteCodes.filter(c => c !== code);
+  if (selectedPaletteShift === code) selectedPaletteShift = "WD";
+
+  docRef.update({
+    paletteCodes: paletteCodes
+  }).then(() => {
+    closeRemoveCodeModal();
+    renderPaletteButtons();
+    alert(`Shift code "${code}" removed from palette.`);
+  }).catch(err => {
+    alert(`Failed to remove code: ${err.message}`);
+  });
+}
+
+// --- FULL SCREEN INTERACTIVE MATRIX BUILDER (EXACT CA & WD FLOW) ---
 function openMatrixBuilder() {
   if (currentRole !== 'admin') return;
   const monthKey = document.getElementById("monthSelect").value;
@@ -1357,17 +1657,26 @@ function openMatrixBuilder() {
     return;
   }
 
-  // Deep clone data for offline scratchpad editing
   matrixDraftCopy = JSON.parse(JSON.stringify(rostersByMonth[monthKey]));
 
   const [yyyy, mm] = monthKey.split("-").map(Number);
   const totalDays = new Date(yyyy, mm, 0).getDate();
 
+  if (!monthlyManningTargets[monthKey]) {
+    monthlyManningTargets[monthKey] = {};
+  }
+  for (let d = 1; d <= totalDays; d++) {
+    if (!monthlyManningTargets[monthKey][d]) {
+      let dayOfWeek = new Date(yyyy, mm - 1, d).getDay();
+      let isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+      monthlyManningTargets[monthKey][d] = { wd: isWeekend ? 2 : 6, ca: isWeekend ? 0 : 2 };
+    }
+  }
+
   document.getElementById('matrixMonthTitle').innerText = monthKey;
   const isDraft = (rosterStatusByMonth[monthKey] === 'draft');
   document.getElementById('matrixDraftBadge').innerHTML = isDraft ? `<span class="status-draft">DRAFT</span>` : `<span class="status-published">PUBLISHED</span>`;
 
-  // Build Table Header
   const headerRow = document.getElementById('matrixHeaderRow');
   headerRow.innerHTML = `<th class="sticky-col">Staff Member</th>`;
   for (let d = 1; d <= totalDays; d++) {
@@ -1375,6 +1684,8 @@ function openMatrixBuilder() {
     headerRow.innerHTML += `<th>${d}<br><small style="font-weight:normal; font-size:9px;">${dayOfWeek}</small></th>`;
   }
 
+  buildWeeklyRibbon(yyyy, mm, totalDays);
+  renderPaletteButtons();
   renderMatrixBody(totalDays);
   updateMatrixBottomManning(totalDays);
 
@@ -1386,24 +1697,18 @@ function closeMatrixBuilder() {
   matrixDraftCopy = null;
 }
 
-function selectPaletteCode(btn, code) {
-  selectedPaletteShift = code;
-  document.querySelectorAll('.palette-btn').forEach(b => b.classList.remove('selected'));
-  btn.classList.add('selected');
-}
-
 function renderMatrixBody(totalDays) {
   const tbody = document.getElementById('matrixBody');
   tbody.innerHTML = "";
 
-  matrixDraftCopy.forEach((staff, staffIdx) => {
+  matrixDraftCopy.forEach((staff) => {
     let tr = document.createElement('tr');
     tr.innerHTML = `<td class="sticky-col"><b>${staff.id}</b> - ${staff.name}</td>`;
 
     for (let d = 0; d < totalDays; d++) {
       let shift = staff.shifts[d] || "DO";
       let isOff = isOffDuty(shift);
-      let bg = isOff ? "#ffffff" : (shiftColors[shift] || "#e2e8f0");
+      let bg = isOff ? "#ffffff" : (shiftColors[shift] || generatePastel(shift));
       let td = document.createElement('td');
       td.className = "matrix-cell";
       td.style.backgroundColor = bg;
@@ -1412,7 +1717,7 @@ function renderMatrixBody(totalDays) {
         staff.shifts[d] = selectedPaletteShift;
         let newIsOff = isOffDuty(selectedPaletteShift);
         td.innerText = selectedPaletteShift;
-        td.style.backgroundColor = newIsOff ? "#ffffff" : (shiftColors[selectedPaletteShift] || "#e2e8f0");
+        td.style.backgroundColor = newIsOff ? "#ffffff" : (shiftColors[selectedPaletteShift] || generatePastel(selectedPaletteShift));
         updateMatrixBottomManning(totalDays);
       };
       tr.appendChild(td);
@@ -1421,26 +1726,176 @@ function renderMatrixBody(totalDays) {
   });
 }
 
-// Feature 3: Bottom Live Manning Counter
+// STRICT CA & WD Manning Counter
 function updateMatrixBottomManning(totalDays) {
+  const monthKey = document.getElementById("monthSelect").value;
+  const targets = monthlyManningTargets[monthKey] || {};
   const footerRow = document.getElementById('matrixFooterRow');
-  footerRow.innerHTML = `<td class="sticky-col" style="background:#0f172a; color:#fff;">Daily Manning:</td>`;
+  footerRow.innerHTML = `<td class="sticky-col" style="background:#0f172a; color:#fff;">Manning (WD/CA):<br><small style="font-size:0.65rem; color:#94a3b8;">Tap cell to edit target</small></td>`;
 
-  for (let d = 0; d < totalDays; d++) {
-    let tally = { WD1: 0, WD: 0, WDP: 0 };
+  for (let d = 1; d <= totalDays; d++) {
+    let dayIdx = d - 1;
+    let wdCount = 0;
+    let caCount = 0;
+
     matrixDraftCopy.forEach(staff => {
-      let s = (staff.shifts[d] || "").trim().toUpperCase();
-      if (s === "WD1" || s === "WD1A") tally.WD1++;
-      else if (s === "WD" || s === "WD2" || s === "CA") tally.WD++;
-      else if (s === "WDP") tally.WDP++;
+      let s = (staff.shifts[dayIdx] || "").trim().toUpperCase();
+      
+      // Strict CA check: Only 'CA' is counted as CA
+      if (s === "CA") {
+        caCount++;
+      } 
+      // WD bucket: Standard watch duties
+      else if (s === "WD" || s === "WD1" || s === "WD2" || s === "WDP" || s === "WD1A" || s === "WDA") {
+        wdCount++;
+      }
     });
 
+    let dayTarget = targets[d] || { wd: 6, ca: 2 };
+    let wdColor = wdCount < dayTarget.wd ? "#ef4444" : (wdCount === dayTarget.wd ? "#22c55e" : "#60a5fa");
+    let caColor = caCount < dayTarget.ca ? "#ef4444" : (caCount === dayTarget.ca ? "#22c55e" : "#60a5fa");
+
+    let wdIcon = wdCount < dayTarget.wd ? "⚠️" : (wdCount === dayTarget.wd ? "✅" : "+");
+    let caIcon = caCount < dayTarget.ca ? "⚠️" : (caCount === dayTarget.ca ? "✅" : "+");
+
     footerRow.innerHTML += `
-      <td>
-        <span style="color:#93c5fd;">${tally.WD1}</span>·<span style="color:#86efac;">${tally.WD}</span>·<span style="color:#c084fc;">${tally.WDP}</span>
+      <td onclick="openTargetStepperModal(${d})" title="Click to adjust Day ${d} Target">
+        <div style="color:${wdColor}; font-weight:bold;">WD:${wdCount}/${dayTarget.wd} ${wdIcon}</div>
+        <div style="color:${caColor}; font-weight:bold; margin-top:2px;">CA:${caCount}/${dayTarget.ca} ${caIcon}</div>
       </td>
     `;
   }
+}
+
+function buildWeeklyRibbon(yyyy, mm, totalDays) {
+  const ribbon = document.getElementById('matrixWeeklyRibbon');
+  ribbon.innerHTML = `<span style="font-size:0.75rem; font-weight:bold; color:#64748b; margin-right:4px;">Weekly WD/CA Presets:</span>`;
+
+  let currentWeek = 1;
+  let weekStart = 1;
+
+  for (let d = 1; d <= totalDays; d++) {
+    let dayOfWeek = new Date(yyyy, mm - 1, d).getDay();
+    if (dayOfWeek === 0 || d === totalDays) {
+      let startD = weekStart;
+      let endD = d;
+      let wNum = currentWeek;
+
+      let chip = document.createElement('div');
+      chip.className = "ribbon-chip";
+      chip.innerHTML = `<span>🗓️ W${wNum} (Day ${startD}-${endD})</span>`;
+      chip.onclick = () => openWeeklyPresetModal(wNum, startD, endD, yyyy, mm);
+      ribbon.appendChild(chip);
+
+      currentWeek++;
+      weekStart = d + 1;
+    }
+  }
+}
+
+function openTargetStepperModal(dayNum) {
+  activeStepperDay = dayNum;
+  const monthKey = document.getElementById("monthSelect").value;
+  const dayTarget = monthlyManningTargets[monthKey]?.[dayNum] || { wd: 6, ca: 2 };
+
+  document.getElementById('stepperDayDisplay').innerText = `Day ${dayNum}`;
+  document.getElementById('stepperWdVal').innerText = dayTarget.wd;
+  document.getElementById('stepperCaVal').innerText = dayTarget.ca;
+
+  document.getElementById('targetStepperModal').style.display = 'flex';
+}
+
+function closeTargetStepperModal() {
+  document.getElementById('targetStepperModal').style.display = 'none';
+  activeStepperDay = null;
+}
+
+function adjustStepperValue(type, delta) {
+  const el = type === 'wd' ? document.getElementById('stepperWdVal') : document.getElementById('stepperCaVal');
+  let currentVal = parseInt(el.innerText, 10);
+  let newVal = Math.max(0, currentVal + delta);
+  el.innerText = newVal;
+}
+
+function applyStepperTarget(applyToWeek) {
+  if (!activeStepperDay) return;
+  const monthKey = document.getElementById("monthSelect").value;
+  const wdVal = parseInt(document.getElementById('stepperWdVal').innerText, 10);
+  const caVal = parseInt(document.getElementById('stepperCaVal').innerText, 10);
+
+  const [yyyy, mm] = monthKey.split("-").map(Number);
+  const totalDays = new Date(yyyy, mm, 0).getDate();
+
+  if (!monthlyManningTargets[monthKey]) monthlyManningTargets[monthKey] = {};
+
+  if (!applyToWeek) {
+    monthlyManningTargets[monthKey][activeStepperDay] = { wd: wdVal, ca: caVal };
+  } else {
+    let currentDay = activeStepperDay;
+    let dayOfWeek = new Date(yyyy, mm - 1, currentDay).getDay();
+    let offsetToMon = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    let weekStart = Math.max(1, currentDay - offsetToMon);
+    let weekEnd = Math.min(totalDays, weekStart + 6);
+
+    for (let d = weekStart; d <= weekEnd; d++) {
+      let dow = new Date(yyyy, mm - 1, d).getDay();
+      let isWeekend = (dow === 0 || dow === 6);
+      if (!isWeekend) {
+        monthlyManningTargets[monthKey][d] = { wd: wdVal, ca: caVal };
+      }
+    }
+  }
+
+  closeTargetStepperModal();
+  updateMatrixBottomManning(totalDays);
+}
+
+function openWeeklyPresetModal(wNum, startD, endD, yyyy, mm) {
+  activePresetWeek = { wNum, startD, endD, yyyy, mm };
+  document.getElementById('presetWeekNumDisplay').innerText = wNum;
+  document.getElementById('presetWeekRangeDisplay').innerText = `Day ${startD} to Day ${endD}`;
+
+  const monthKey = document.getElementById("monthSelect").value;
+  let sampleTarget = monthlyManningTargets[monthKey]?.[startD] || { wd: 6, ca: 2 };
+  document.getElementById('presetWdVal').innerText = sampleTarget.wd;
+  document.getElementById('presetCaVal').innerText = sampleTarget.ca;
+
+  document.getElementById('weeklyPresetModal').style.display = 'flex';
+}
+
+function closeWeeklyPresetModal() {
+  document.getElementById('weeklyPresetModal').style.display = 'none';
+  activePresetWeek = null;
+}
+
+function adjustWeeklyPresetValue(type, delta) {
+  const el = type === 'wd' ? document.getElementById('presetWdVal') : document.getElementById('presetCaVal');
+  let currentVal = parseInt(el.innerText, 10);
+  let newVal = Math.max(0, currentVal + delta);
+  el.innerText = newVal;
+}
+
+function applyWeeklyPreset() {
+  if (!activePresetWeek) return;
+  const monthKey = document.getElementById("monthSelect").value;
+  const wdVal = parseInt(document.getElementById('presetWdVal').innerText, 10);
+  const caVal = parseInt(document.getElementById('presetCaVal').innerText, 10);
+
+  const { startD, endD, yyyy, mm } = activePresetWeek;
+  const totalDays = new Date(yyyy, mm, 0).getDate();
+
+  if (!monthlyManningTargets[monthKey]) monthlyManningTargets[monthKey] = {};
+
+  for (let d = startD; d <= endD; d++) {
+    let dayOfWeek = new Date(yyyy, mm - 1, d).getDay();
+    let isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+    if (!isWeekend) {
+      monthlyManningTargets[monthKey][d] = { wd: wdVal, ca: caVal };
+    }
+  }
+
+  closeWeeklyPresetModal();
+  updateMatrixBottomManning(totalDays);
 }
 
 function saveMatrixChanges() {
@@ -1451,9 +1906,12 @@ function saveMatrixChanges() {
 
   docRef.update({
     rostersByMonth: rostersByMonth,
+    monthlyManningTargets: monthlyManningTargets,
+    paletteCodes: paletteCodes,
+    shiftMap: shiftMap,
     lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
   }).then(() => {
-    alert("Matrix Roster saved to cloud!");
+    alert("Matrix Roster & Manning Targets saved to cloud!");
     closeMatrixBuilder();
     refreshUIAfterCloudSync();
   }).catch(err => {
@@ -1475,6 +1933,7 @@ function closeSecurityModal() {
 
 function executePasscodeChange(type) {
   if (currentRole !== 'admin') return;
+
   const inputEl = type === 'staff' ? document.getElementById('newStaffPasscodeInput') : document.getElementById('newAdminPasscodeInput');
   const newPin = inputEl.value.trim();
 
@@ -1510,7 +1969,6 @@ function executePasscodeChange(type) {
 
 function executeSessionReset() {
   if (currentRole !== 'admin') return;
-
   const verifyAdminPin = prompt("⚠️ Security Confirmation:\nPlease enter your CURRENT Admin Master Passcode to confirm forcing all devices to log out:");
   if (verifyAdminPin !== currentAdminPasscode) {
     alert("Incorrect Admin Master Passcode. Reset aborted.");
@@ -1518,7 +1976,6 @@ function executeSessionReset() {
   }
 
   let newSessionVersion = (currentSessionVersion || 1) + 1;
-
   docRef.update({
     "authConfig.sessionVersion": newSessionVersion,
     "authConfig.lastResetTimestamp": firebase.firestore.FieldValue.serverTimestamp()
@@ -1672,10 +2129,7 @@ function acknowledgeBroadcast() {
   }
 
   document.getElementById('forcedAckModal').style.display = 'none';
-
-  docRef.update({
-    activeBroadcast: activeBroadcast
-  });
+  docRef.update({ activeBroadcast: activeBroadcast });
 }
 
 // --- CALENDAR EXPORT WITH DUAL CHECKBOXES ---
@@ -1983,7 +2437,7 @@ function exportMasterRosterPDF() {
     for (let d = 0; d < totalDays; d++) {
       let shift = staff.shifts[d] || "-";
       let isOff = isOffDuty(shift);
-      let bg = isOff ? "#f8fafc" : (shiftColors[shift] || "#e2e8f0");
+      let bg = isOff ? "#f8fafc" : (shiftColors[shift] || generatePastel(shift));
       tableBodyHtml += `<td style="background:${bg}; font-weight:${isOff ? 'normal' : 'bold'}; color:#0f172a;">${shift}</td>`;
     }
     tableBodyHtml += `</tr>`;
@@ -2071,7 +2525,7 @@ function saveBatchOverride() {
   }
 
   if (!newShift) {
-    alert("Please enter a Shift Code (e.g. WD1, DO, SICK, AL).");
+    alert("Please enter a Shift Code (e.g. WD, CA, DO, AL).");
     return;
   }
 
@@ -2129,10 +2583,12 @@ function deleteCurrentMonthRoster() {
 
   delete rostersByMonth[monthKey];
   delete rosterStatusByMonth[monthKey];
+  delete monthlyManningTargets[monthKey];
 
   docRef.update({
     rostersByMonth: rostersByMonth,
     rosterStatusByMonth: rosterStatusByMonth,
+    monthlyManningTargets: monthlyManningTargets,
     lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
   }).then(() => {
     alert(`Roster for ${monthKey} has been removed from cloud.`);
@@ -2149,12 +2605,15 @@ function resetAllRosterData() {
 
   rostersByMonth = {};
   rosterStatusByMonth = {};
+  monthlyManningTargets = {};
   leaveRequests = [];
   activeBroadcast = null;
 
   docRef.set({
     rostersByMonth: {},
     rosterStatusByMonth: {},
+    monthlyManningTargets: {},
+    paletteCodes: ["WD", "CA", "WD1", "WD2", "WDP", "DO", "AL", "SICK", "TU", "UT"],
     leaveRequests: [],
     activeBroadcast: null,
     generalNotes: bulletinBoardText,
@@ -2168,7 +2627,7 @@ function resetAllRosterData() {
   });
 }
 
-// --- FILE UPLOADER (EXCEL UPLOAD COMPATIBILITY RETAINED) ---
+// --- FILE UPLOADER ---
 function setupFileUploadListener() {
   const fileInput = document.getElementById('fileInput');
   if (!fileInput) return;
@@ -2266,12 +2725,23 @@ function parseAndStoreRoster(rows) {
     }
   });
 
+  if (!monthlyManningTargets[detectedMonth]) {
+    monthlyManningTargets[detectedMonth] = {};
+    for (let d = 1; d <= totalDays; d++) {
+      let dayOfWeek = new Date(y, m - 1, d).getDay();
+      let isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+      monthlyManningTargets[detectedMonth][d] = { wd: isWeekend ? 2 : 6, ca: isWeekend ? 0 : 2 };
+    }
+  }
+
   rostersByMonth[detectedMonth] = parsed;
-  rosterStatusByMonth[detectedMonth] = 'published'; // Excel uploads publish automatically
+  rosterStatusByMonth[detectedMonth] = 'published';
 
   docRef.set({
     rostersByMonth: rostersByMonth,
     rosterStatusByMonth: rosterStatusByMonth,
+    monthlyManningTargets: monthlyManningTargets,
+    paletteCodes: paletteCodes,
     shiftMap: shiftMap,
     lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
   }, { merge: true })
@@ -2687,6 +3157,7 @@ function buildColorPickers() {
   const container = document.getElementById("colorPickerContainer");
   container.innerHTML = "";
   let allCodes = new Set(Object.keys(shiftColors));
+  paletteCodes.forEach(c => allCodes.add(c));
   Object.values(rostersByMonth).forEach(m => m.forEach(w => w.shifts.forEach(s => { if(!isOffDuty(s)) allCodes.add(s); })));
 
   allCodes.forEach(code => {
