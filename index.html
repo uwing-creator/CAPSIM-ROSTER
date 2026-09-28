@@ -94,6 +94,24 @@
     flex-wrap: wrap;
   }
 
+  /* Priority Broadcast Banners */
+  .broadcast-banner {
+    display: none;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 16px;
+    border-left: 5px solid;
+    animation: fadeIn 0.3s ease;
+  }
+  .broadcast-alert { background: #fee2e2; border-color: #ef4444; color: #991b1b; }
+  .broadcast-warning { background: #fef3c7; border-color: #f59e0b; color: #92400e; }
+  .broadcast-info { background: #e0f2fe; border-color: #0284c7; color: #075985; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
   .dashboard-layout { 
     display: grid; 
     grid-template-columns: 2.5fr 1fr; 
@@ -264,6 +282,18 @@
 </div>
 
 <div id="mainContent">
+  <!-- Dynamic Operational Broadcast Banner -->
+  <div id="broadcastBanner" class="broadcast-banner">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <div>
+        <b id="broadcastTitle" style="font-size: 1rem;"></b>
+        <div id="broadcastMessage" style="margin-top: 4px; font-size: 0.88rem; line-height: 1.4;"></div>
+        <div id="broadcastMeta" style="font-size: 0.72rem; margin-top: 6px; opacity: 0.85;"></div>
+      </div>
+      <button id="adminBroadcastEditBtn" class="btn" style="display:none; font-size: 0.75rem; padding: 4px 8px; margin-left: 10px;" onclick="openBroadcastModal()">✏️ Edit</button>
+    </div>
+  </div>
+
   <div class="header">
     <div>
       <h1 style="margin:0; font-size: 1.25rem; color: var(--primary); display:flex; align-items:center;">
@@ -314,7 +344,10 @@
         <!-- Admin Master Controls Row -->
         <div style="display: none; margin-top: 10px; flex-direction: column; gap: 8px;" id="adminDataControls">
           <div style="display: flex; gap: 8px;">
-            <button class="btn" style="flex:1; background:#fef3c7; color:#92400e; border-color:#fde68a; font-weight:bold; font-size:0.85rem;" onclick="openBatchModal()">⚡ Batch Override Shifts</button>
+            <button class="btn" style="flex:1; background:#fee2e2; color:#991b1b; border-color:#fca5a5; font-weight:bold; font-size:0.85rem;" onclick="openBroadcastModal()">📢 Post Broadcast Notice</button>
+            <button class="btn" style="flex:1; background:#fef3c7; color:#92400e; border-color:#fde68a; font-weight:bold; font-size:0.85rem;" onclick="openBatchModal()">⚡ Batch Override</button>
+          </div>
+          <div style="display: flex; gap: 8px;">
             <button class="btn" style="flex:1; background:#f0fdf4; color:#166534; border-color:#86efac; font-weight:bold; font-size:0.85rem;" onclick="openMasterExportModal()">📊 Export Master Roster</button>
           </div>
           <div style="display: flex; gap: 8px;">
@@ -392,7 +425,7 @@
   </div>
 </div>
 
-<!-- Batch Override Modal (Admin Only - Multi Day & Multi Staff) -->
+<!-- Batch Override Modal (Admin Only) -->
 <div id="batchModal" class="modal-overlay">
   <div class="card" style="width: 100%; max-width: 360px; margin: auto;">
     <h2 style="border:none; margin-bottom: 5px;">⚡ Batch Override Shifts</h2>
@@ -431,6 +464,60 @@
       <button class="btn" style="flex:1;" onclick="closeBatchModal()">Cancel</button>
       <button class="btn" style="flex:1; background:var(--accent); color:#fff; border-color:var(--accent); font-weight:bold;" onclick="saveBatchOverride()">Apply Batch</button>
     </div>
+  </div>
+</div>
+
+<!-- Broadcast Notice Modal (Admin Only) -->
+<div id="broadcastModal" class="modal-overlay">
+  <div class="card" style="width: 100%; max-width: 400px; margin: auto;">
+    <h2 style="border:none; margin-bottom: 5px;">📢 Post Operational Broadcast</h2>
+    <p style="font-size: 0.8rem; color: #64748b; margin-top: 0; margin-bottom: 12px;">Create or edit scheduled operational directives.</p>
+
+    <label style="font-size:0.8rem; font-weight:bold; color:#475569;">Priority Level:</label>
+    <select id="broadcastTypeInput" class="btn" style="margin-top:4px; margin-bottom:10px;">
+      <option value="alert">🚨 Operational Alert (Red)</option>
+      <option value="warning">⚠️ Technical Advisory (Amber)</option>
+      <option value="info">ℹ️ General Notice (Blue)</option>
+    </select>
+
+    <label style="font-size:0.8rem; font-weight:bold; color:#475569;">Notice Title:</label>
+    <input type="text" id="broadcastTitleInput" class="btn" placeholder="e.g. Typhoon Standby Arrangement" style="margin-top:4px; margin-bottom:10px;">
+
+    <label style="font-size:0.8rem; font-weight:bold; color:#475569;">Directive / Message:</label>
+    <textarea id="broadcastMsgInput" class="btn" style="margin-top:4px; margin-bottom:10px; height:80px; resize:vertical;" placeholder="Enter operational memo details..."></textarea>
+
+    <div style="display:flex; gap:8px; margin-bottom:10px;">
+      <div style="flex:1;">
+        <label style="font-size:0.8rem; font-weight:bold; color:#475569;">Start Date:</label>
+        <input type="date" id="broadcastStartDate" class="btn" style="margin-top:4px;">
+      </div>
+      <div style="flex:1;">
+        <label style="font-size:0.8rem; font-weight:bold; color:#475569;">Expiry Date:</label>
+        <input type="date" id="broadcastEndDate" class="btn" style="margin-top:4px;">
+      </div>
+    </div>
+
+    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; margin-bottom:18px;">
+      <input type="checkbox" id="broadcastAckCheckbox" checked>
+      <span style="font-size:0.82rem; font-weight:bold; color:#1e293b;">🔒 Require Forced Worker Acknowledgement</span>
+    </label>
+
+    <div style="display:flex; gap:8px;">
+      <button class="btn btn-danger" style="flex:1;" onclick="clearActiveBroadcast()">Clear / Delete</button>
+      <button class="btn" style="flex:1;" onclick="closeBroadcastModal()">Cancel</button>
+      <button class="btn" style="flex:1; background:var(--accent); color:#fff; border-color:var(--accent); font-weight:bold;" onclick="saveBroadcast()">Publish</button>
+    </div>
+  </div>
+</div>
+
+<!-- Forced Worker Acknowledgement Modal (Staff Pop-up Gate) -->
+<div id="forcedAckModal" class="modal-overlay" style="z-index: 10000; background: rgba(15, 23, 42, 0.85);">
+  <div class="card" style="width: 100%; max-width: 380px; margin: auto; border-top: 5px solid #ef4444;">
+    <div style="font-size:1.8rem; margin-bottom:6px;">⚠️</div>
+    <h2 style="border:none; margin-bottom: 5px; color:#991b1b;" id="forcedAckTitle"></h2>
+    <div id="forcedAckMessage" style="font-size:0.9rem; line-height:1.5; color:#1e293b; margin-bottom:14px; background:#f8fafc; padding:12px; border-radius:6px; border:1px solid var(--border); text-align:left;"></div>
+    <p style="font-size:0.78rem; color:#64748b; margin-bottom:18px;">Acknowledgment required for: <b id="forcedAckStaffName"></b></p>
+    <button class="btn" style="width:100%; background:#166534; color:#fff; border-color:#166534; font-weight:bold; padding:10px;" onclick="acknowledgeBroadcast()">✅ I Have Read and Understood</button>
   </div>
 </div>
 
@@ -507,9 +594,7 @@
       </div>
     </div>
 
-    <div id="alarmDayChecklist" style="overflow-y: auto; max-height: 240px; border: 1px solid var(--border); border-radius: 6px; padding: 6px; margin-bottom: 12px; flex-grow: 1;">
-      <!-- Dynamically generated rows -->
-    </div>
+    <div id="alarmDayChecklist" style="overflow-y: auto; max-height: 240px; border: 1px solid var(--border); border-radius: 6px; padding: 6px; margin-bottom: 12px; flex-grow: 1;"></div>
     
     <div style="display:flex; gap:8px; flex-shrink: 0;">
       <button class="btn" style="flex:1;" onclick="closeCalendarExportModal()">Cancel</button>
@@ -561,6 +646,7 @@ let currentRole = null;
 let rostersByMonth = {};
 let bulletinBoardText = "";
 let leaveRequests = [];
+let activeBroadcast = null;
 let activeEditDay = null;
 let isEditMode = false;
 let isEditingNotes = false;
@@ -577,16 +663,12 @@ let shiftMap = {
 const DEFAULT_COLORS = { "WD": "#86efac", "WD1": "#93c5fd", "WD2": "#86efac", "CA": "#fde047", "DO": "#cbd5e1", "OFF": "#cbd5e1", "SICK": "#fca5a5", "AL": "#fbcfe8", "UT": "#f472b6", "TU": "#fcd34d", "WDP": "#c084fc" };
 let shiftColors = { ...DEFAULT_COLORS };
 
-// --- PWA SERVICE WORKER REGISTRATION ---
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(err => {
-      console.log('PWA Service Worker setup complete.');
-    });
+    navigator.serviceWorker.register('./sw.js').catch(err => {});
   });
 }
 
-// --- USER-SPECIFIC LOCAL PREFERENCE FUNCTIONS ---
 function getCurrentStaffId() {
   return document.getElementById("staffSelect")?.value || localStorage.getItem('capsim_last_selected_staff') || "default_user";
 }
@@ -665,6 +747,7 @@ function syncRoleUI() {
   const adminLeavePanel = document.getElementById('adminLeavePanel');
   const staffLeaveCard = document.getElementById('staffLeaveCard');
   const adminDataControls = document.getElementById('adminDataControls');
+  const adminBroadcastEditBtn = document.getElementById('adminBroadcastEditBtn');
   
   const toggleEditBtn = document.getElementById('toggleEditBtn');
   const dailySummaryContainer = document.getElementById('dailySummaryContainer');
@@ -686,6 +769,7 @@ function syncRoleUI() {
     adminLeavePanel.style.display = 'block';
     staffLeaveCard.style.display = 'none';
     adminDataControls.style.display = 'flex';
+    adminBroadcastEditBtn.style.display = 'block';
     
     isEditMode = false;
     isEditingNotes = false;
@@ -708,12 +792,14 @@ function syncRoleUI() {
     adminLeavePanel.style.display = 'none';
     staffLeaveCard.style.display = 'block';
     adminDataControls.style.display = 'none';
+    adminBroadcastEditBtn.style.display = 'none';
     
     isEditMode = false;
     isEditingNotes = false;
     document.getElementById('calModeNotice').innerText = '(Read Only)';
     updateNotesUI();
   }
+  evaluateActiveBroadcast();
 }
 
 // --- CLOUD FIRESTORE ENGINE ---
@@ -727,16 +813,19 @@ function initCloudListener() {
       shiftMap = { ...shiftMap, ...(data.shiftMap || {}) };
       bulletinBoardText = data.generalNotes || "";
       leaveRequests = data.leaveRequests || [];
+      activeBroadcast = data.activeBroadcast || null;
       
       document.getElementById('bulletinBoardBox').value = bulletinBoardText;
       document.getElementById("cloudStatus").innerText = `Live Cloud Sync • ${new Date().toLocaleTimeString()}`;
     } else {
       document.getElementById("cloudStatus").innerText = "Online • Ready for initial upload.";
       rostersByMonth = {};
+      activeBroadcast = null;
     }
     
     refreshUIAfterCloudSync();
     renderLeaveRequests();
+    evaluateActiveBroadcast();
   }, (err) => {
     document.getElementById("cloudStatus").innerText = `Cloud Error: ${err.message}`;
   });
@@ -789,6 +878,7 @@ function handleStaffChange() {
   loadStaffColors();
   buildColorPickers();
   updateDashboard();
+  evaluateActiveBroadcast();
 }
 
 function populateStaffSelect() {
@@ -850,7 +940,157 @@ function updateDashboard() {
   }
 }
 
-// --- CALENDAR EXPORT WITH DUAL DAY & ALARM CHECKBOXES ---
+// --- OPERATIONAL BROADCAST ENGINE (SCHEDULING & FORCED ACK) ---
+function evaluateActiveBroadcast() {
+  const banner = document.getElementById('broadcastBanner');
+  const forcedModal = document.getElementById('forcedAckModal');
+  
+  if (!activeBroadcast || !activeBroadcast.active) {
+    banner.style.display = 'none';
+    forcedModal.style.display = 'none';
+    return;
+  }
+
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+  // Time boundary check (Start Date & End Date)
+  if (activeBroadcast.startDate && todayStr < activeBroadcast.startDate) {
+    banner.style.display = 'none';
+    forcedModal.style.display = 'none';
+    return;
+  }
+  if (activeBroadcast.endDate && todayStr > activeBroadcast.endDate) {
+    banner.style.display = 'none';
+    forcedModal.style.display = 'none';
+    return;
+  }
+
+  // Display top operational banner
+  banner.className = `broadcast-banner broadcast-${activeBroadcast.type || 'alert'}`;
+  banner.style.display = 'block';
+  document.getElementById('broadcastTitle').innerText = activeBroadcast.title || 'Operational Notice';
+  document.getElementById('broadcastMessage').innerText = activeBroadcast.message || '';
+  
+  let dateSpan = activeBroadcast.startDate ? `Active: ${activeBroadcast.startDate} to ${activeBroadcast.endDate || 'Further Notice'}` : '';
+  let ackCount = (activeBroadcast.acknowledgedStaff || []).length;
+  document.getElementById('broadcastMeta').innerText = `${dateSpan} • Acknowledged by ${ackCount} personnel`;
+
+  // Check Forced Acknowledgement for currently selected staff member
+  if (currentRole === 'staff' && activeBroadcast.requireAck) {
+    const staffId = document.getElementById('staffSelect')?.value;
+    const acks = activeBroadcast.acknowledgedStaff || [];
+    
+    if (staffId && !acks.includes(staffId)) {
+      const staffName = document.getElementById('staffSelect')?.options[document.getElementById('staffSelect').selectedIndex]?.text || staffId;
+      document.getElementById('forcedAckTitle').innerText = activeBroadcast.title || 'Notice';
+      document.getElementById('forcedAckMessage').innerText = activeBroadcast.message || '';
+      document.getElementById('forcedAckStaffName').innerText = staffName;
+      forcedModal.style.display = 'flex';
+      return;
+    }
+  }
+
+  forcedModal.style.display = 'none';
+}
+
+function openBroadcastModal() {
+  if (currentRole !== 'admin') return;
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+  if (activeBroadcast) {
+    document.getElementById('broadcastTypeInput').value = activeBroadcast.type || 'alert';
+    document.getElementById('broadcastTitleInput').value = activeBroadcast.title || '';
+    document.getElementById('broadcastMsgInput').value = activeBroadcast.message || '';
+    document.getElementById('broadcastStartDate').value = activeBroadcast.startDate || todayStr;
+    document.getElementById('broadcastEndDate').value = activeBroadcast.endDate || '';
+    document.getElementById('broadcastAckCheckbox').checked = !!activeBroadcast.requireAck;
+  } else {
+    document.getElementById('broadcastTypeInput').value = 'alert';
+    document.getElementById('broadcastTitleInput').value = '';
+    document.getElementById('broadcastMsgInput').value = '';
+    document.getElementById('broadcastStartDate').value = todayStr;
+    document.getElementById('broadcastEndDate').value = '';
+    document.getElementById('broadcastAckCheckbox').checked = true;
+  }
+  document.getElementById('broadcastModal').style.display = 'flex';
+}
+
+function closeBroadcastModal() {
+  document.getElementById('broadcastModal').style.display = 'none';
+}
+
+function saveBroadcast() {
+  if (currentRole !== 'admin') return;
+  const title = document.getElementById('broadcastTitleInput').value.trim();
+  const message = document.getElementById('broadcastMsgInput').value.trim();
+  const type = document.getElementById('broadcastTypeInput').value;
+  const startDate = document.getElementById('broadcastStartDate').value;
+  const endDate = document.getElementById('broadcastEndDate').value;
+  const requireAck = document.getElementById('broadcastAckCheckbox').checked;
+
+  if (!title || !message) {
+    alert("Please enter both a title and directive message.");
+    return;
+  }
+
+  activeBroadcast = {
+    id: "bcast_" + Date.now(),
+    active: true,
+    type: type,
+    title: title,
+    message: message,
+    startDate: startDate,
+    endDate: endDate,
+    requireAck: requireAck,
+    acknowledgedStaff: activeBroadcast ? (activeBroadcast.acknowledgedStaff || []) : []
+  };
+
+  closeBroadcastModal();
+  evaluateActiveBroadcast();
+
+  docRef.update({
+    activeBroadcast: activeBroadcast,
+    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(() => {
+    alert("Operational Broadcast Published!");
+  }).catch(err => {
+    alert("Failed to publish: " + err.message);
+  });
+}
+
+function clearActiveBroadcast() {
+  if (currentRole !== 'admin') return;
+  if (!confirm("Remove and cancel this broadcast?")) return;
+
+  activeBroadcast = null;
+  closeBroadcastModal();
+  evaluateActiveBroadcast();
+
+  docRef.update({
+    activeBroadcast: null,
+    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+  });
+}
+
+function acknowledgeBroadcast() {
+  const staffId = document.getElementById('staffSelect')?.value;
+  if (!staffId || !activeBroadcast) return;
+
+  if (!activeBroadcast.acknowledgedStaff) activeBroadcast.acknowledgedStaff = [];
+  if (!activeBroadcast.acknowledgedStaff.includes(staffId)) {
+    activeBroadcast.acknowledgedStaff.push(staffId);
+  }
+
+  document.getElementById('forcedAckModal').style.display = 'none';
+
+  docRef.update({
+    activeBroadcast: activeBroadcast
+  });
+}
+
+// --- CALENDAR EXPORT WITH DUAL CHECKBOXES ---
 function openCalendarExportModal() {
   const staffSelect = document.getElementById("staffSelect");
   const monthKey = document.getElementById("monthSelect").value;
@@ -941,9 +1181,7 @@ function toggleAllCalendarDays(checked) {
 
 function toggleAllAlarmCheckboxes(checked) {
   document.querySelectorAll('.alarm-day-checkbox').forEach(cb => {
-    if (!cb.disabled) {
-      cb.checked = checked;
-    }
+    if (!cb.disabled) cb.checked = checked;
   });
 }
 
@@ -1110,28 +1348,19 @@ function exportMasterRosterExcel() {
   const totalDays = new Date(yyyy, mm, 0).getDate();
 
   let headerRow = ["Staff ID", "Name"];
-  for (let d = 1; d <= totalDays; d++) {
-    headerRow.push(d);
-  }
+  for (let d = 1; d <= totalDays; d++) headerRow.push(d);
 
   let dataRows = [headerRow];
-
   staffList.forEach(staff => {
     let row = [staff.id, staff.name];
-    for (let d = 0; d < totalDays; d++) {
-      let shift = staff.shifts[d] || "-";
-      row.push(shift);
-    }
+    for (let d = 0; d < totalDays; d++) row.push(staff.shifts[d] || "-");
     dataRows.push(row);
   });
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(dataRows);
-
   let colWidths = [{ wch: 10 }, { wch: 22 }];
-  for (let d = 1; d <= totalDays; d++) {
-    colWidths.push({ wch: 7 });
-  }
+  for (let d = 1; d <= totalDays; d++) colWidths.push({ wch: 7 });
   ws['!cols'] = colWidths;
 
   XLSX.utils.book_append_sheet(wb, ws, `${monthKey} Roster`);
@@ -1154,10 +1383,7 @@ function exportMasterRosterPDF() {
     return;
   }
 
-  let tableHeaderHtml = `
-    <th>Staff ID</th>
-    <th>Staff Name</th>
-  `;
+  let tableHeaderHtml = `<th>Staff ID</th><th>Staff Name</th>`;
   for (let d = 1; d <= totalDays; d++) {
     let dayOfWeek = getDayName(yyyy, mm, d).substring(0, 2);
     tableHeaderHtml += `<th>${d}<br><small style="font-weight:normal; font-size:8px;">${dayOfWeek}</small></th>`;
@@ -1278,7 +1504,7 @@ function saveBatchOverride() {
   let appliedCount = 0;
   targets.forEach(member => {
     for (let day = startDay; day <= endDay; day++) {
-      let dayOfWeek = new Date(yyyy, mm - 1, day).getDay(); // 0: Sun, 6: Sat
+      let dayOfWeek = new Date(yyyy, mm - 1, day).getDay();
       let isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
 
       if (dayFilter === 'weekdays' && isWeekend) continue;
@@ -1333,10 +1559,12 @@ function resetAllRosterData() {
 
   rostersByMonth = {};
   leaveRequests = [];
+  activeBroadcast = null;
 
   docRef.set({
     rostersByMonth: {},
     leaveRequests: [],
+    activeBroadcast: null,
     generalNotes: bulletinBoardText,
     shiftMap: shiftMap,
     lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
@@ -1436,12 +1664,10 @@ function parseAndStoreRoster(rows) {
 
       while (curr <= end) {
         let reqMonth = `${curr.getFullYear()}-${String(curr.getMonth() + 1).padStart(2, '0')}`;
-        if (reqMonth === detectedMonth) {
-          let reqDay = curr.getDate();
-          let staff = parsed.find(w => w.id === req.staffId);
-          if (staff && reqDay <= totalDays) {
-            staff.shifts[reqDay - 1] = req.type;
-          }
+        let reqDay = curr.getDate();
+        let staff = parsed.find(w => w.id === req.staffId);
+        if (staff && reqDay <= totalDays && reqMonth === detectedMonth) {
+          staff.shifts[reqDay - 1] = req.type;
         }
         curr.setDate(curr.getDate() + 1);
       }
@@ -1457,7 +1683,7 @@ function parseAndStoreRoster(rows) {
   }, { merge: true })
   .then(() => {
     isUploadingRoster = false;
-    alert(`Uploaded successfully! Stored ${parsed.length} staff members (including all new joiners) for ${detectedMonth}.`);
+    alert(`Uploaded successfully! Stored ${parsed.length} staff members for ${detectedMonth}.`);
     refreshUIAfterCloudSync();
   })
   .catch(err => {
@@ -1466,7 +1692,6 @@ function parseAndStoreRoster(rows) {
   });
 }
 
-// --- SHIFT DISPLAY UTILITIES ---
 function isOffDuty(shift) { 
   let s = (shift || "").trim().toUpperCase(); 
   return s === "" || s === "-" || s === "DO" || s === "OFF"; 
@@ -1649,7 +1874,6 @@ function showDailySummary(dayNum) {
   });
 }
 
-// --- OVERRIDE & MODALS ---
 function toggleEditMode() {
   isEditMode = !isEditMode;
   updateEditModeUI();
@@ -1710,7 +1934,6 @@ function saveShiftOverride() {
   }
 }
 
-// --- LEAVE & BULLETIN ---
 function openLeaveModal() {
   const staffSelect = document.getElementById("staffSelect");
   if (!staffSelect || !staffSelect.value) return;
@@ -1866,7 +2089,6 @@ function updateNotesUI() {
   box.style.backgroundColor = isEditingNotes ? "#ffffff" : "#f8fafc";
 }
 
-// --- USER-SPECIFIC COLOR PICKERS ---
 function buildColorPickers() {
   const container = document.getElementById("colorPickerContainer");
   container.innerHTML = "";
