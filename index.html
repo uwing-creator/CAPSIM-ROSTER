@@ -226,6 +226,21 @@
   .leave-history-item:last-child { border-bottom: none; }
   .btn-icon { background: none; border: none; font-size: 1.1rem; cursor: pointer; padding: 4px; border-radius: 4px; }
 
+  /* Day-by-day dual checklist row */
+  .alarm-day-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 8px;
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 5px;
+    font-size: 0.82rem;
+  }
+  .alarm-day-row:hover { background: #f1f5f9; }
+  .alarm-day-row.excluded { opacity: 0.5; background: #f1f5f9; }
+
   @media (max-width: 768px) {
     body { padding: 8px; }
     .dashboard-layout { grid-template-columns: 1fr !important; gap: 12px; }
@@ -417,22 +432,40 @@
   </div>
 </div>
 
-<!-- Calendar (.ICS) Export Modal with Smart VALARM selector -->
+<!-- Calendar (.ICS) Export Modal with Dual Day & Alarm Checklist -->
 <div id="calendarExportModal" class="modal-overlay">
-  <div class="card" style="width: 100%; max-width: 340px; margin: auto;">
-    <h2 style="border:none; margin-bottom: 5px;">📲 Sync to Phone Calendar</h2>
-    <p style="font-size: 0.8rem; color: #64748b; margin-top: 0; margin-bottom: 14px;">Generate an Apple / Google Calendar (.ics) file for <b id="exportStaffDisplay" style="color:var(--primary);"></b>.</p>
+  <div class="card" style="width: 100%; max-width: 380px; margin: auto; max-height: 92vh; display: flex; flex-direction: column;">
+    <h2 style="border:none; margin-bottom: 5px; flex-shrink: 0;">📲 Sync to Phone Calendar</h2>
+    <p style="font-size: 0.8rem; color: #64748b; margin-top: 0; margin-bottom: 10px; flex-shrink: 0;">
+      Export for <b id="exportStaffDisplay" style="color:var(--primary);"></b>
+    </p>
     
-    <label style="font-size:0.8rem; font-weight:bold; color:#475569;">⏰ Pre-Shift Alarm Reminder (VALARM):</label>
-    <select id="icsAlarmSelect" class="btn" style="margin-top:6px; margin-bottom:18px;">
-      <option value="0">No Alarm</option>
-      <option value="30">30 minutes before report time</option>
-      <option value="60">60 minutes (1 hr) before</option>
-      <option value="90" selected>90 minutes before (Default)</option>
-      <option value="120">120 minutes (2 hrs) before</option>
-    </select>
+    <div style="flex-shrink: 0;">
+      <label style="font-size:0.8rem; font-weight:bold; color:#475569;">⏰ Default Alarm Time:</label>
+      <select id="icsAlarmSelect" class="btn" style="margin-top:4px; margin-bottom:10px;">
+        <option value="30">30 minutes before report time</option>
+        <option value="60">60 minutes (1 hr) before</option>
+        <option value="90" selected>90 minutes before (Default)</option>
+        <option value="120">120 minutes (2 hrs) before</option>
+      </select>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 4px;">
+        <span style="font-size:0.75rem; font-weight:bold; color:#475569;">Select Days & Alarms:</span>
+        <div style="display: flex; gap: 4px;">
+          <button class="btn" style="font-size:0.68rem; padding: 2px 5px;" onclick="toggleAllCalendarDays(true)">All Days</button>
+          <button class="btn" style="font-size:0.68rem; padding: 2px 5px;" onclick="toggleAllCalendarDays(false)">No Days</button>
+          <button class="btn" style="font-size:0.68rem; padding: 2px 5px;" onclick="toggleAllAlarmCheckboxes(true)">All Alarms</button>
+          <button class="btn" style="font-size:0.68rem; padding: 2px 5px;" onclick="toggleAllAlarmCheckboxes(false)">No Alarms</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scrollable Duty Day Checklist with Dual Checkboxes -->
+    <div id="alarmDayChecklist" style="overflow-y: auto; max-height: 240px; border: 1px solid var(--border); border-radius: 6px; padding: 6px; margin-bottom: 12px; flex-grow: 1;">
+      <!-- Dynamically generated rows -->
+    </div>
     
-    <div style="display:flex; gap:8px;">
+    <div style="display:flex; gap:8px; flex-shrink: 0;">
       <button class="btn" style="flex:1;" onclick="closeCalendarExportModal()">Cancel</button>
       <button class="btn" style="flex:1; background:var(--accent); color:#fff; border-color:var(--accent); font-weight:bold;" onclick="downloadMonthlyICS()">Download (.ics)</button>
     </div>
@@ -750,18 +783,101 @@ function updateDashboard() {
   }
 }
 
-// --- CALENDAR EXPORT MODAL & .ICS GENERATOR ---
+// --- CALENDAR EXPORT WITH DUAL DAY & ALARM CHECKBOXES ---
 function openCalendarExportModal() {
   const staffSelect = document.getElementById("staffSelect");
-  if (!staffSelect || !staffSelect.value) return;
-  document.getElementById('exportStaffDisplay').innerText = staffSelect.options[staffSelect.selectedIndex].text;
+  const monthKey = document.getElementById("monthSelect").value;
+  if (!staffSelect || !staffSelect.value || !monthKey || !rostersByMonth[monthKey]) return;
+
+  const staffId = staffSelect.value;
+  const monthRoster = rostersByMonth[monthKey];
+  const staff = monthRoster.find(w => w.id === staffId);
+  if (!staff) return;
+
+  document.getElementById('exportStaffDisplay').innerText = `${staff.id} - ${staff.name} (${monthKey})`;
   
   let savedAlarm = localStorage.getItem('capsim_preferred_alarm');
   if (savedAlarm !== null) {
     document.getElementById('icsAlarmSelect').value = savedAlarm;
   }
-  
+
+  const [yyyy, mm] = monthKey.split("-").map(Number);
+  const container = document.getElementById('alarmDayChecklist');
+  container.innerHTML = "";
+
+  let dutyDayCount = 0;
+  staff.shifts.forEach((shift, index) => {
+    let s = (shift || "").trim().toUpperCase();
+    if (isOffDuty(s)) return;
+
+    dutyDayCount++;
+    let dayNum = index + 1;
+    let dayName = getDayName(yyyy, mm, dayNum);
+    let timeInfo = parseShiftTimes(s);
+    let timeLabel = timeInfo.isAllDay ? "All-Day" : `${timeInfo.startH}:${timeInfo.startM}`;
+
+    let row = document.createElement('div');
+    row.className = "alarm-day-row";
+    row.id = `exportRow_${dayNum}`;
+    row.innerHTML = `
+      <div>
+        <b>Day ${String(dayNum).padStart(2, '0')} (${dayName}):</b> 
+        <span style="color:var(--accent); font-weight:bold; margin-left:3px;">${s}</span>
+        <small style="color:#64748b; margin-left:4px;">(${timeLabel})</small>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <label style="display:flex; align-items:center; gap:3px; cursor:pointer;" title="Add event to calendar">
+          <input type="checkbox" class="export-day-checkbox" data-day="${dayNum}" checked onchange="handleDayToggle(${dayNum})">
+          <span style="font-size:0.72rem; color:#1e293b; font-weight:600;">📅 Add</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:3px; cursor:pointer;" title="Include alarm for this day">
+          <input type="checkbox" class="alarm-day-checkbox" data-day="${dayNum}" checked>
+          <span style="font-size:0.72rem; color:#475569;">🔔 Alarm</span>
+        </label>
+      </div>
+    `;
+    container.appendChild(row);
+  });
+
+  if (dutyDayCount === 0) {
+    container.innerHTML = `<div style="text-align:center; color:#94a3b8; font-style:italic; padding:10px;">No duty shifts found for this month.</div>`;
+  }
+
   document.getElementById('calendarExportModal').style.display = 'flex';
+}
+
+function handleDayToggle(dayNum) {
+  const dayCb = document.querySelector(`.export-day-checkbox[data-day="${dayNum}"]`);
+  const alarmCb = document.querySelector(`.alarm-day-checkbox[data-day="${dayNum}"]`);
+  const row = document.getElementById(`exportRow_${dayNum}`);
+  
+  if (dayCb && alarmCb && row) {
+    if (!dayCb.checked) {
+      alarmCb.checked = false;
+      alarmCb.disabled = true;
+      row.classList.add('excluded');
+    } else {
+      alarmCb.disabled = false;
+      alarmCb.checked = true;
+      row.classList.remove('excluded');
+    }
+  }
+}
+
+function toggleAllCalendarDays(checked) {
+  document.querySelectorAll('.export-day-checkbox').forEach(cb => {
+    cb.checked = checked;
+    let dayNum = cb.getAttribute('data-day');
+    handleDayToggle(dayNum);
+  });
+}
+
+function toggleAllAlarmCheckboxes(checked) {
+  document.querySelectorAll('.alarm-day-checkbox').forEach(cb => {
+    if (!cb.disabled) {
+      cb.checked = checked;
+    }
+  });
 }
 
 function closeCalendarExportModal() {
@@ -789,7 +905,6 @@ function parseShiftTimes(shiftCode) {
     return { isAllDay: true };
   }
 
-  // Default fallbacks for special duty / training
   return {
     startH: "08",
     startM: "30",
@@ -811,6 +926,22 @@ function downloadMonthlyICS() {
   const alarmMinutes = parseInt(document.getElementById('icsAlarmSelect').value, 10);
   localStorage.setItem('capsim_preferred_alarm', alarmMinutes);
 
+  // Read which days are enabled for calendar and which have alarms
+  const enabledCalendarDays = new Set();
+  document.querySelectorAll('.export-day-checkbox').forEach(cb => {
+    if (cb.checked) enabledCalendarDays.add(parseInt(cb.getAttribute('data-day'), 10));
+  });
+
+  const enabledAlarmDays = new Set();
+  document.querySelectorAll('.alarm-day-checkbox').forEach(cb => {
+    if (cb.checked && !cb.disabled) enabledAlarmDays.add(parseInt(cb.getAttribute('data-day'), 10));
+  });
+
+  if (enabledCalendarDays.size === 0) {
+    alert("Please select at least one day to add to your calendar.");
+    return;
+  }
+
   const [yyyy, mm] = monthKey.split("-");
   const nowStamp = new Date().toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
   
@@ -827,12 +958,15 @@ function downloadMonthlyICS() {
     let s = (shift || "").trim().toUpperCase();
     if (isOffDuty(s)) return;
 
-    let dayNum = String(index + 1).padStart(2, '0');
+    let dayNumber = index + 1;
+    // Skip if user unchecked this specific day
+    if (!enabledCalendarDays.has(dayNumber)) return;
+
+    let dayNum = String(dayNumber).padStart(2, '0');
     let dateStr = `${yyyy}${mm}${dayNum}`;
     let timeInfo = parseShiftTimes(s);
     if (!timeInfo) return;
 
-    // Check colleagues working on the same day
     let colleagueNames = [];
     if (!timeInfo.isAllDay) {
       let colleagues = monthRoster.filter(w => w.id !== staff.id && (w.shifts[index] || "").trim().toUpperCase() === s);
@@ -847,7 +981,7 @@ function downloadMonthlyICS() {
     icsLines.push(`DTSTAMP:${nowStamp}`);
 
     if (timeInfo.isAllDay) {
-      let nextDayNum = String(index + 2).padStart(2, '0');
+      let nextDayNum = String(dayNumber + 1).padStart(2, '0');
       icsLines.push(`DTSTART;VALUE=DATE:${dateStr}`);
       icsLines.push(`DTEND;VALUE=DATE:${yyyy}${mm}${nextDayNum}`);
       icsLines.push(`SUMMARY:CAP(SIM) ${s === 'AL' ? 'Annual Leave (AL)' : 'Sick Leave'}`);
@@ -859,7 +993,8 @@ function downloadMonthlyICS() {
       icsLines.push(`DESCRIPTION:Duty Shift: ${s} (${timeInfo.startH}:${timeInfo.startM} - ${timeInfo.endH}:${timeInfo.endM})${partnerDesc}`);
       icsLines.push("LOCATION:ATMD SIM Centre");
 
-      if (alarmMinutes > 0) {
+      // Inject VALARM only if the alarm box for this specific day is checked
+      if (enabledAlarmDays.has(dayNumber) && alarmMinutes > 0) {
         icsLines.push("BEGIN:VALARM");
         icsLines.push(`TRIGGER:-PT${alarmMinutes}M`);
         icsLines.push("ACTION:DISPLAY");
