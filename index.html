@@ -130,7 +130,7 @@
         <h2 style="border:none; margin-bottom: 10px; padding:0;">👤 Select Staff Member & Month</h2>
         <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
           <select id="staffSelect" class="btn" onchange="saveSelectionAndUpdate()"></select>
-          <select id="monthSelect" class="btn" onchange="updateDashboard()"></select>
+          <select id="monthSelect" class="btn" onchange="handleMonthChange()"></select>
         </div>
         <!-- Staff Action Row (Request Leave) -->
         <div style="display: flex; margin-top: 10px;" id="staffActionRow">
@@ -884,6 +884,11 @@ function refreshUIAfterCloudSync() {
   updateDashboard();
 }
 
+function handleMonthChange() {
+  populateStaffSelect();
+  updateDashboard();
+}
+
 // --- UTILITY & RENDERING ---
 function isOffDuty(shift) { 
   let s = (shift || "").trim().toUpperCase(); 
@@ -920,11 +925,13 @@ function getDaysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
 function populateStaffSelect() {
   const staffSelect = document.getElementById("staffSelect");
   const monthKey = document.getElementById("monthSelect").value;
-  if(!monthKey || !rostersByMonth[monthKey]) return;
+  if (!monthKey || !rostersByMonth[monthKey]) return;
 
   const prevStaff = staffSelect.value;
   staffSelect.innerHTML = "";
-  rostersByMonth[monthKey].forEach(w => {
+  
+  const staffList = rostersByMonth[monthKey];
+  staffList.forEach(w => {
     let opt = document.createElement("option");
     opt.value = w.id;
     opt.text = `${w.id} - ${w.name}`;
@@ -932,10 +939,20 @@ function populateStaffSelect() {
   });
 
   let savedId = localStorage.getItem('capsim_saved_staff');
-  if (prevStaff && [...staffSelect.options].some(o => o.value === prevStaff)) {
+  
+  // Intelligent selection with fallback:
+  // 1. Keep currently viewed staff if they exist in this month
+  if (prevStaff && staffList.some(o => o.id === prevStaff)) {
     staffSelect.value = prevStaff;
-  } else if (savedId && [...staffSelect.options].some(o => o.value === savedId)) {
+  } 
+  // 2. Or fallback to previously saved staff if they exist in this month
+  else if (savedId && staffList.some(o => o.id === savedId)) {
     staffSelect.value = savedId;
+  } 
+  // 3. Otherwise select the first available staff member
+  else if (staffList.length > 0) {
+    staffSelect.value = staffList[0].id;
+    localStorage.setItem('capsim_saved_staff', staffList[0].id);
   }
 }
 
@@ -950,7 +967,14 @@ function updateDashboard() {
   if (!monthKey || !staffId || !rostersByMonth[monthKey]) return;
 
   const monthRoster = rostersByMonth[monthKey];
-  const staff = monthRoster.find(w => w.id === staffId);
+  let staff = monthRoster.find(w => w.id === staffId);
+  
+  // Auto-recovery if staff is missing
+  if (!staff && monthRoster.length > 0) {
+    staff = monthRoster[0];
+    document.getElementById("staffSelect").value = staff.id;
+    localStorage.setItem('capsim_saved_staff', staff.id);
+  }
   if (!staff) return;
 
   const [yyyy, mm] = monthKey.split("-").map(Number);
@@ -966,8 +990,8 @@ function updateDashboard() {
 
   if (currentRole !== 'admin') {
     renderTodayBox(staff, yyyy, mm, now);
-    renderNextShiftBox(staffId, now);
-    renderStaffLeaveBox(staffId);
+    renderNextShiftBox(staff.id, now);
+    renderStaffLeaveBox(staff.id);
   }
 }
 
