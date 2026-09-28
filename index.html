@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>CAP(SIM) Shift Dashboard</title>
 
 <!-- PWA & Mobile Web App Meta Tags -->
@@ -20,68 +20,222 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
 
 <style>
-  :root { --primary: #0f172a; --bg: #f8fafc; --card: #ffffff; --border: #e2e8f0; --accent: #2563eb; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg); color: #1e293b; margin: 0; padding: 20px; }
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  :root { 
+    --primary: #0f172a; 
+    --bg: #f8fafc; 
+    --card: #ffffff; 
+    --border: #e2e8f0; 
+    --accent: #2563eb; 
+  }
+
+  html, body {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  body { 
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+    background-color: var(--bg); 
+    color: #1e293b; 
+    padding: 12px;
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
   
-  #loginGate { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0f172a; z-index: 9999; display: flex; align-items: center; justify-content: center; }
-  .login-card { background: #ffffff; border-radius: 12px; padding: 35px 25px; width: 340px; max-width: 90%; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center; }
+  #loginGate { 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100vw; 
+    height: 100vh; 
+    background: #0f172a; 
+    z-index: 9999; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    padding: 16px;
+  }
+  .login-card { 
+    background: #ffffff; 
+    border-radius: 12px; 
+    padding: 28px 20px; 
+    width: 100%; 
+    max-width: 340px; 
+    box-shadow: 0 10px 25px rgba(0,0,0,0.3); 
+    text-align: center; 
+  }
   
-  #mainContent { display: none; }
-  .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); padding-bottom: 15px; margin-bottom: 20px; }
-  .dashboard-layout { display: grid; grid-template-columns: 2.5fr 1fr; gap: 20px; transition: all 0.3s ease; }
-  .dashboard-layout.admin-layout { grid-template-columns: 1fr; }
-  .left-col, .right-col { display: flex; flex-direction: column; gap: 20px; }
-  .card { background: var(--card); border-radius: 8px; border: 1px solid var(--border); padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-  h2 { margin-top: 0; font-size: 1.15rem; color: var(--primary); display: flex; align-items: center; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 15px; }
+  #mainContent { 
+    display: none; 
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .header { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    border-bottom: 2px solid var(--border); 
+    padding-bottom: 12px; 
+    margin-bottom: 16px; 
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .header-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .dashboard-layout { 
+    display: grid; 
+    grid-template-columns: 2.5fr 1fr; 
+    gap: 16px; 
+    width: 100%;
+    transition: all 0.3s ease; 
+  }
+  .dashboard-layout.admin-layout { 
+    grid-template-columns: 1fr; 
+  }
   
-  .badge { display: inline-block; padding: 6px 14px; border-radius: 6px; font-weight: 700; font-size: 1.2rem; text-align: center; border: 1px solid rgba(0,0,0,0.1); }
-  .badge-small { padding: 3px 8px; border-radius: 4px; font-size: 0.85rem; }
+  .left-col, .right-col { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 16px; 
+    min-width: 0;
+  }
+
+  .card { 
+    background: var(--card); 
+    border-radius: 8px; 
+    border: 1px solid var(--border); 
+    padding: 14px; 
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05); 
+    min-width: 0;
+  }
+
+  h2 { 
+    margin-top: 0; 
+    font-size: 1.05rem; 
+    color: var(--primary); 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    padding-bottom: 8px; 
+    border-bottom: 1px solid var(--border); 
+    margin-bottom: 12px; 
+  }
   
-  .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-  .cal-day-header { font-weight: bold; text-align: center; padding: 6px; background: #e2e8f0; border-radius: 4px; font-size: 0.85rem; }
-  .cal-day-box { border: 1px solid var(--border); border-radius: 4px; padding: 10px; min-height: 60px; background: #fff; font-size: 0.85rem; display: flex; flex-direction: column; justify-content: space-between; position: relative; transition: all 0.2s ease; }
+  .badge { 
+    display: inline-block; 
+    padding: 4px 10px; 
+    border-radius: 6px; 
+    font-weight: 700; 
+    font-size: 1.05rem; 
+    text-align: center; 
+    border: 1px solid rgba(0,0,0,0.1); 
+  }
+  .badge-small { 
+    padding: 2px 4px; 
+    border-radius: 4px; 
+    font-size: 0.72rem; 
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    width: 100%;
+  }
+  
+  /* Flexible Calendar Grid for all mobile widths */
+  .calendar-grid { 
+    display: grid; 
+    grid-template-columns: repeat(7, 1fr); 
+    gap: 4px; 
+    width: 100%;
+  }
+
+  .cal-day-header { 
+    font-weight: bold; 
+    text-align: center; 
+    padding: 4px 2px; 
+    background: #e2e8f0; 
+    border-radius: 4px; 
+    font-size: 0.75rem; 
+  }
+
+  .cal-day-box { 
+    border: 1px solid var(--border); 
+    border-radius: 4px; 
+    padding: 4px 3px; 
+    min-height: 52px; 
+    background: #fff; 
+    font-size: 0.75rem; 
+    display: flex; 
+    flex-direction: column; 
+    justify-content: space-between; 
+    position: relative; 
+    min-width: 0;
+    transition: all 0.2s ease; 
+  }
   
   .cal-day-box.admin-clickable { cursor: pointer; }
   .cal-day-box.admin-clickable:hover { border-color: #94a3b8; }
-  .cal-day-box.edit-mode:hover { box-shadow: 0 4px 8px rgba(0,0,0,0.1); transform: translateY(-2px); border-color: var(--accent); }
-  .cal-day-box.edit-mode::after { content: "✏️"; position: absolute; top: 8px; right: 8px; font-size: 0.7rem; opacity: 0; }
-  .cal-day-box.edit-mode:hover::after { opacity: 1; }
+  .cal-day-box.edit-mode:hover { box-shadow: 0 2px 6px rgba(0,0,0,0.1); border-color: var(--accent); }
   
   .cal-day-box.off { background: #fafafa; opacity: 0.8; }
   .cal-day-box.active { border: 2px solid var(--accent); background: #eff6ff; }
   
-  .info-box { text-align: center; padding: 10px 0; }
-  .info-date { font-size: 1.1rem; color: #64748b; font-weight: 600; margin-bottom: 15px; }
-  .info-time { font-size: 1.25rem; font-weight: bold; color: var(--primary); }
-  .colleagues { margin-top: 15px; font-size: 0.85rem; color: #475569; background: #f8fafc; padding: 8px; border-radius: 6px; border: 1px solid var(--border); text-align: left; }
+  .info-box { text-align: center; padding: 6px 0; }
+  .info-date { font-size: 1rem; color: #64748b; font-weight: 600; margin-bottom: 10px; }
+  .info-time { font-size: 1.15rem; font-weight: bold; color: var(--primary); }
+  .colleagues { margin-top: 10px; font-size: 0.82rem; color: #475569; background: #f8fafc; padding: 8px; border-radius: 6px; border: 1px solid var(--border); text-align: left; }
   
-  .btn { padding: 8px 14px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; cursor: pointer; font-size: 0.95rem; font-weight: 500; }
+  .btn { 
+    padding: 8px 12px; 
+    border-radius: 6px; 
+    border: 1px solid #cbd5e1; 
+    background: #fff; 
+    cursor: pointer; 
+    font-size: 0.9rem; 
+    font-weight: 500; 
+    touch-action: manipulation;
+  }
   .btn:hover { background: #f1f5f9; }
   .btn-danger { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
   .btn-danger:hover { background: #fecaca; }
-  select.btn, input.btn { width: 100%; font-size: 1rem; box-sizing: border-box; }
+  select.btn, input.btn { width: 100%; font-size: 0.95rem; }
   
-  #colorSettings { display: none; margin-bottom: 20px; }
-  .color-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-top: 10px; }
-  .color-item { display: flex; align-items: center; justify-content: space-between; background: #f8fafc; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); font-size: 0.85rem; font-weight: 600; }
+  #colorSettings { display: none; margin-bottom: 16px; }
+  .color-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin-top: 10px; }
+  .color-item { display: flex; align-items: center; justify-content: space-between; background: #f8fafc; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); font-size: 0.8rem; font-weight: 600; }
   
-  .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); z-index: 1000; align-items: center; justify-content: center; }
-  .role-badge { font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; font-weight: 600; margin-left: 8px; }
+  .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); z-index: 1000; align-items: center; justify-content: center; padding: 14px; }
+  .role-badge { font-size: 0.72rem; padding: 3px 6px; border-radius: 4px; font-weight: 600; margin-left: 6px; }
   .role-staff { background: #e2e8f0; color: #475569; }
   .role-admin { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
-  .live-pulse { display: inline-block; width: 8px; height: 8px; background: #22c55e; border-radius: 50%; margin-right: 6px; }
+  .live-pulse { display: inline-block; width: 7px; height: 7px; background: #22c55e; border-radius: 50%; margin-right: 6px; }
 
-  .leave-item { background: #fff; border: 1px solid var(--border); padding: 8px 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.9rem; }
-  .leave-history-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
+  .leave-item { background: #fff; border: 1px solid var(--border); padding: 8px 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.85rem; }
+  .leave-history-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.82rem; }
   .leave-history-item:last-child { border-bottom: none; }
   .btn-icon { background: none; border: none; font-size: 1.1rem; cursor: pointer; padding: 4px; border-radius: 4px; }
-  .btn-icon:hover { background: #f1f5f9; }
 
+  /* Mobile Layout Enhancements */
   @media (max-width: 768px) {
-    .dashboard-layout { grid-template-columns: 1fr !important; }
-    .header { flex-direction: column; align-items: flex-start; gap: 15px; }
-    .header-actions { width: 100%; display: flex; flex-wrap: wrap; gap: 10px; }
-    .header-actions > * { flex: 1; text-align: center; justify-content: center; min-width: 45%; }
+    body { padding: 8px; }
+    .dashboard-layout { grid-template-columns: 1fr !important; gap: 12px; }
+    .header { flex-direction: column; align-items: stretch; gap: 10px; }
+    .header-actions { width: 100%; display: flex; justify-content: space-between; }
+    .header-actions > * { flex: 1; text-align: center; }
+    .cal-day-box { min-height: 48px; padding: 3px 2px; }
+    .badge-small { font-size: 0.68rem; }
   }
 </style>
 </head>
@@ -90,9 +244,9 @@
 <div id="loginGate">
   <div class="login-card">
     <div style="font-size: 2.2rem; margin-bottom: 8px;">🛫</div>
-    <h2 style="border: none; justify-content: center; margin-bottom: 4px; font-size: 1.3rem;">CAP(SIM) Portal Access</h2>
-    <p style="font-size: 0.85rem; color: #64748b; margin-top: 0; margin-bottom: 20px;">Enter your passcode to view duty rosters</p>
-    <input type="password" id="gatePasscode" class="btn" style="text-align: center; font-size: 1.25rem; letter-spacing: 5px; margin-bottom: 15px;" placeholder="••••" autofocus>
+    <h2 style="border: none; justify-content: center; margin-bottom: 4px; font-size: 1.25rem;">CAP(SIM) Portal Access</h2>
+    <p style="font-size: 0.85rem; color: #64748b; margin-top: 0; margin-bottom: 18px;">Enter your passcode to view duty rosters</p>
+    <input type="password" id="gatePasscode" class="btn" style="text-align: center; font-size: 1.25rem; letter-spacing: 5px; margin-bottom: 14px;" placeholder="••••" autofocus>
     <button class="btn" style="width: 100%; background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600;" onclick="handleGateLogin()">Enter Dashboard</button>
   </div>
 </div>
@@ -100,7 +254,7 @@
 <div id="mainContent">
   <div class="header">
     <div>
-      <h1 style="margin:0; font-size: 1.5rem; color: var(--primary); display:flex; align-items:center;">
+      <h1 style="margin:0; font-size: 1.25rem; color: var(--primary); display:flex; align-items:center;">
         <span class="live-pulse"></span>🛫 CAP(SIM) Shift Dashboard 
         <span id="roleIndicator" class="role-badge role-staff">Staff Mode</span>
       </h1>
@@ -108,7 +262,7 @@
     </div>
     <div class="header-actions">
       <button class="btn" onclick="toggleSettings()">🎨 Colors</button>
-      <label id="uploadBtnLabel" class="btn" style="display:none; align-items:center;">📁 Upload (.xlsx)
+      <label id="uploadBtnLabel" class="btn" style="display:none; align-items:center; justify-content:center;">📁 Upload (.xlsx)
         <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" style="display:none;">
       </label>
       <button id="authBtn" class="btn" onclick="toggleAdminOrLock()">🔒 Admin Mode</button>
@@ -116,7 +270,7 @@
   </div>
 
   <div id="colorSettings" class="card">
-    <h2 style="border:none; margin:0; padding:0;">🎨 Customize Shift Colors <button class="btn" style="font-size:0.8rem;" onclick="resetColors()">Reset</button></h2>
+    <h2 style="border:none; margin:0; padding:0;">🎨 Customize Shift Colors <button class="btn" style="font-size:0.75rem; padding: 4px 8px;" onclick="resetColors()">Reset</button></h2>
     <div class="color-grid" id="colorPickerContainer"></div>
   </div>
 
@@ -124,49 +278,49 @@
     <div class="left-col">
       
       <!-- Admin Leave Requests Panel -->
-      <div id="adminLeavePanel" class="card" style="display:none; margin-bottom: 20px; border-color: var(--accent); background: #f0fdf4;">
-        <h2 style="color: #166534; margin-bottom: 10px; border-bottom-color: #bbf7d0;">🛎️ Leave Requests</h2>
-        <div id="pendingRequestsContainer" style="margin-bottom: 15px;"></div>
-        <div style="font-size: 0.8rem; font-weight: bold; color: #166534; border-bottom: 1px solid #bbf7d0; padding-bottom: 4px; margin-bottom: 8px;">Request History (Past/Current/Next Month)</div>
-        <div id="requestHistoryContainer" style="max-height: 180px; overflow-y: auto; font-size: 0.85rem; color: #475569;"></div>
+      <div id="adminLeavePanel" class="card" style="display:none; margin-bottom: 12px; border-color: var(--accent); background: #f0fdf4;">
+        <h2 style="color: #166534; margin-bottom: 8px; border-bottom-color: #bbf7d0;">🛎️ Leave Requests</h2>
+        <div id="pendingRequestsContainer" style="margin-bottom: 12px;"></div>
+        <div style="font-size: 0.78rem; font-weight: bold; color: #166534; border-bottom: 1px solid #bbf7d0; padding-bottom: 4px; margin-bottom: 8px;">Request History (Past/Current/Next Month)</div>
+        <div id="requestHistoryContainer" style="max-height: 160px; overflow-y: auto; font-size: 0.8rem; color: #475569;"></div>
       </div>
 
       <!-- Staff & Month Selector -->
-      <div class="card" style="padding-bottom: 15px;">
-        <h2 style="border:none; margin-bottom: 10px; padding:0;">👤 Select Staff Member & Month</h2>
-        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
+      <div class="card" style="padding-bottom: 12px;">
+        <h2 style="border:none; margin-bottom: 8px; padding:0;">👤 Select Staff Member & Month</h2>
+        <div style="display: grid; grid-template-columns: 2fr 1.2fr; gap: 8px;">
           <select id="staffSelect" class="btn" onchange="handleStaffChange()"></select>
           <select id="monthSelect" class="btn" onchange="handleMonthChange()"></select>
         </div>
         
         <!-- Staff Action -->
-        <div style="display: flex; margin-top: 10px;" id="staffActionRow">
+        <div style="display: flex; margin-top: 8px;" id="staffActionRow">
            <button class="btn" style="flex:1; background:#e0f2fe; color:#1e40af; border-color:#bae6fd; font-weight:bold;" onclick="openLeaveModal()">📅 Request Leave</button>
         </div>
 
         <!-- Admin Data Operations Row -->
-        <div style="display: none; margin-top: 12px; gap: 8px;" id="adminDataControls">
-          <button class="btn btn-danger" style="flex:1; font-size:0.85rem; font-weight:600;" onclick="deleteCurrentMonthRoster()">🗑️ Delete Current Month</button>
-          <button class="btn btn-danger" style="flex:1; font-size:0.85rem; font-weight:600;" onclick="resetAllRosterData()">⚠️ Reset All Data</button>
+        <div style="display: none; margin-top: 10px; gap: 8px;" id="adminDataControls">
+          <button class="btn btn-danger" style="flex:1; font-size:0.8rem; font-weight:600; padding:6px;" onclick="deleteCurrentMonthRoster()">🗑️ Delete Month</button>
+          <button class="btn btn-danger" style="flex:1; font-size:0.8rem; font-weight:600; padding:6px;" onclick="resetAllRosterData()">⚠️ Reset All Data</button>
         </div>
       </div>
 
       <div class="card" style="flex-grow: 1;">
         <h2>📅 Calendar 
-          <div style="display:flex; gap:10px; align-items:center;">
-            <button id="toggleEditBtn" class="btn" style="display:none; padding:4px 10px; font-size:0.8rem; font-weight:bold; transition: 0.2s;" onclick="toggleEditMode()">✏️ Edit Roster</button>
-            <small id="calModeNotice" style="font-size:0.8rem; font-weight:normal; color:#64748b;">(Read Only)</small>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <button id="toggleEditBtn" class="btn" style="display:none; padding:3px 8px; font-size:0.75rem; font-weight:bold;" onclick="toggleEditMode()">✏️ Edit</button>
+            <small id="calModeNotice" style="font-size:0.75rem; font-weight:normal; color:#64748b;">(Read Only)</small>
           </div>
         </h2>
 
-        <div id="dailySummaryContainer" style="display:none; margin-bottom: 15px; background: #f8fafc; border: 1px solid var(--border); border-radius: 6px; padding: 12px; text-align: left;">
-          <div style="font-size: 0.85rem; font-weight: 700; color: var(--primary); margin-bottom: 8px;">📊 Staffing Summary for Day <span id="summaryDayDisplay" style="color:var(--accent);">_</span></div>
-          <div id="summaryContent" style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.85rem; color: #64748b;">
-            Click a day below to view the staff shift breakdown.
+        <div id="dailySummaryContainer" style="display:none; margin-bottom: 10px; background: #f8fafc; border: 1px solid var(--border); border-radius: 6px; padding: 10px; text-align: left;">
+          <div style="font-size: 0.8rem; font-weight: 700; color: var(--primary); margin-bottom: 6px;">📊 Staff Breakdown for Day <span id="summaryDayDisplay" style="color:var(--accent);">_</span></div>
+          <div id="summaryContent" style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 0.8rem; color: #64748b;">
+            Click a day below to view breakdown.
           </div>
         </div>
 
-        <div class="calendar-grid" style="margin-bottom: 6px;">
+        <div class="calendar-grid" style="margin-bottom: 4px;">
           <div class="cal-day-header">Mon</div><div class="cal-day-header">Tue</div>
           <div class="cal-day-header">Wed</div><div class="cal-day-header">Thu</div>
           <div class="cal-day-header">Fri</div><div class="cal-day-header">Sat</div>
@@ -189,30 +343,30 @@
 
       <div class="card" id="staffLeaveCard" style="display: none;">
         <h2>🛎️ My Leave Requests</h2>
-        <div id="staffLeaveBox" style="text-align: left; max-height: 180px; overflow-y: auto;"></div>
+        <div id="staffLeaveBox" style="text-align: left; max-height: 160px; overflow-y: auto;"></div>
       </div>
     </div>
   </div>
 
-  <div class="card" style="margin-top: 20px;">
-    <h2 style="border:none; margin-bottom: 10px; padding:0;">
+  <div class="card" style="margin-top: 14px;">
+    <h2 style="border:none; margin-bottom: 8px; padding:0;">
       📌 Bulletin Board
-      <button id="editNotesBtn" class="btn" style="display:none; padding:4px 10px; font-size:0.8rem; font-weight:bold; transition: 0.2s;" onclick="toggleEditNotes()">✏️ Edit Board</button>
+      <button id="editNotesBtn" class="btn" style="display:none; padding:3px 8px; font-size:0.75rem; font-weight:bold;" onclick="toggleEditNotes()">✏️ Edit Board</button>
     </h2>
-    <textarea id="bulletinBoardBox" style="width: 100%; min-height: 120px; padding: 12px; border-radius: 6px; border: 1px solid var(--border); font-family: inherit; font-size: 0.95rem; resize: vertical; box-sizing: border-box; background-color: #f8fafc; color: #1e293b;" readonly placeholder="No active bulletin announcements."></textarea>
+    <textarea id="bulletinBoardBox" style="width: 100%; min-height: 90px; padding: 10px; border-radius: 6px; border: 1px solid var(--border); font-family: inherit; font-size: 0.88rem; resize: vertical; box-sizing: border-box; background-color: #f8fafc; color: #1e293b;" readonly placeholder="No active bulletin announcements."></textarea>
   </div>
 
 </div>
 
 <!-- Override Modal (Admin Only) -->
 <div id="editModal" class="modal-overlay">
-  <div class="card" style="width: 320px; max-width: 90%; margin: auto;">
+  <div class="card" style="width: 100%; max-width: 320px; margin: auto;">
     <h2 style="border:none; margin-bottom: 5px;">✏️ Override Shift</h2>
-    <p style="font-size: 0.9rem; color: #64748b; margin-top: 0; margin-bottom: 15px;">Modifying Day <span id="editDayDisplay" style="font-weight:bold; color:var(--primary);"></span></p>
+    <p style="font-size: 0.85rem; color: #64748b; margin-top: 0; margin-bottom: 12px;">Modifying Day <span id="editDayDisplay" style="font-weight:bold; color:var(--primary);"></span></p>
     
-    <label style="font-size:0.85rem; font-weight:bold; color:#475569;">Shift Code (e.g. WD1, DO, SICK):</label>
-    <input type="text" id="editShiftInput" class="btn" style="margin-top:5px; margin-bottom:20px; text-transform:uppercase; font-weight:bold;" placeholder="Enter Shift Code">
-    <div style="display:flex; gap:10px;">
+    <label style="font-size:0.8rem; font-weight:bold; color:#475569;">Shift Code (e.g. WD1, DO, SICK):</label>
+    <input type="text" id="editShiftInput" class="btn" style="margin-top:4px; margin-bottom:16px; text-transform:uppercase; font-weight:bold;" placeholder="Enter Shift Code">
+    <div style="display:flex; gap:8px;">
       <button class="btn" style="flex:1;" onclick="closeEditModal()">Cancel</button>
       <button class="btn" style="flex:1; background:var(--accent); color:#fff; border-color:var(--accent);" onclick="saveShiftOverride()">Save</button>
     </div>
@@ -221,28 +375,28 @@
 
 <!-- Request Leave Modal (Staff Only) -->
 <div id="leaveModal" class="modal-overlay">
-  <div class="card" style="width: 320px; max-width: 90%; margin: auto;">
+  <div class="card" style="width: 100%; max-width: 320px; margin: auto;">
     <h2 style="border:none; margin-bottom: 5px;">📅 Request Leave</h2>
-    <p style="font-size: 0.85rem; color: #64748b; margin-top: 0; margin-bottom: 15px;">Submitting request for: <b id="leaveStaffDisplay" style="color:var(--primary);"></b></p>
+    <p style="font-size: 0.8rem; color: #64748b; margin-top: 0; margin-bottom: 12px;">Submitting request for: <b id="leaveStaffDisplay" style="color:var(--primary);"></b></p>
     
-    <div style="display:flex; gap:10px;">
+    <div style="display:flex; gap:8px;">
       <div style="flex:1;">
-        <label style="font-size:0.85rem; font-weight:bold; color:#475569;">Start Date:</label>
-        <input type="date" id="leaveDateStart" class="btn" style="margin-top:5px; margin-bottom:15px; width: 100%;">
+        <label style="font-size:0.8rem; font-weight:bold; color:#475569;">Start Date:</label>
+        <input type="date" id="leaveDateStart" class="btn" style="margin-top:4px; margin-bottom:12px; width: 100%;">
       </div>
       <div style="flex:1;">
-        <label style="font-size:0.85rem; font-weight:bold; color:#475569;">End Date:</label>
-        <input type="date" id="leaveDateEnd" class="btn" style="margin-top:5px; margin-bottom:15px; width: 100%;">
+        <label style="font-size:0.8rem; font-weight:bold; color:#475569;">End Date:</label>
+        <input type="date" id="leaveDateEnd" class="btn" style="margin-top:4px; margin-bottom:12px; width: 100%;">
       </div>
     </div>
     
-    <label style="font-size:0.85rem; font-weight:bold; color:#475569;">Leave Type:</label>
-    <select id="leaveTypeInput" class="btn" style="margin-top:5px; margin-bottom:25px; width: 100%;">
+    <label style="font-size:0.8rem; font-weight:bold; color:#475569;">Leave Type:</label>
+    <select id="leaveTypeInput" class="btn" style="margin-top:4px; margin-bottom:18px; width: 100%;">
       <option value="AL">Annual Leave (AL)</option>
       <option value="SICK">Sick Leave (SICK)</option>
     </select>
     
-    <div style="display:flex; gap:10px;">
+    <div style="display:flex; gap:8px;">
       <button class="btn" style="flex:1;" onclick="closeLeaveModal()">Cancel</button>
       <button class="btn" style="flex:1; background:var(--accent); color:#fff; border-color:var(--accent);" onclick="submitLeaveRequest()">Draft Request</button>
     </div>
@@ -251,13 +405,13 @@
 
 <!-- Email Draft Modal -->
 <div id="emailDraftModal" class="modal-overlay">
-  <div class="card" style="width: 440px; max-width: 90%; margin: auto;">
+  <div class="card" style="width: 100%; max-width: 420px; margin: auto;">
     <h2 style="border:none; margin-bottom: 5px;">✉️ Email Draft Generated</h2>
-    <p style="font-size: 0.85rem; color: #64748b; margin-top: 0; margin-bottom: 10px;">Your request has been logged. Please copy the text below and email it to <b>atmdtu@cad.gov.hk</b>.</p>
+    <p style="font-size: 0.8rem; color: #64748b; margin-top: 0; margin-bottom: 8px;">Your request is logged. Please copy and send to <b>atmdtu@cad.gov.hk</b>.</p>
     
-    <textarea id="emailDraftContent" style="width: 100%; height: 200px; padding: 10px; font-family: inherit; font-size: 0.9rem; border: 1px solid var(--border); border-radius: 6px; resize: none; line-height: 1.45;" readonly></textarea>
+    <textarea id="emailDraftContent" style="width: 100%; height: 180px; padding: 8px; font-family: inherit; font-size: 0.85rem; border: 1px solid var(--border); border-radius: 6px; resize: none; line-height: 1.45;" readonly></textarea>
     
-    <div style="display:flex; gap:10px; margin-top: 15px;">
+    <div style="display:flex; gap:8px; margin-top: 12px;">
       <button class="btn" style="flex:1;" onclick="closeEmailDraftModal()">Close</button>
       <button id="copyDraftBtn" class="btn" style="flex:1; background:var(--accent); color:#fff; border-color:var(--accent);" onclick="copyEmailDraft()">Copy to Clipboard</button>
     </div>
@@ -566,7 +720,7 @@ function updateDashboard() {
   renderCalendar(staff, yyyy, mm, highlightToday);
 
   document.getElementById('summaryDayDisplay').innerText = "_";
-  document.getElementById('summaryContent').innerHTML = "Click a day below to view the staff shift breakdown.";
+  document.getElementById('summaryContent').innerHTML = "Click a day below to view breakdown.";
 
   if (currentRole !== 'admin') {
     renderTodayBox(staff, yyyy, mm, now);
@@ -799,12 +953,12 @@ function renderCalendar(staff, yyyy, mm, highlightTodayNum) {
     }
     
     box.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; justify-content:space-between; align-items:center; line-height: 1;">
         <b>${dayNum}</b>
-        ${isToday ? '<span style="color:var(--accent); font-weight:bold; font-size:0.75rem;">Today</span>' : ''}
+        ${isToday ? '<span style="color:var(--accent); font-weight:bold; font-size:0.65rem;">•</span>' : ''}
       </div>
-      <div style="margin-top:8px;">${getBadgeHtml(s, true)}</div>
-      <div style="font-size:0.75rem; color:#64748b; margin-top:6px; font-weight:500;">${getTime(s)}</div>
+      <div style="margin-top:4px;">${getBadgeHtml(s, true)}</div>
+      <div style="font-size:0.65rem; color:#64748b; margin-top:3px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${getTime(s)}</div>
     `;
     grid.appendChild(box);
   });
@@ -891,7 +1045,7 @@ function renderNextShiftBox(staffId, fromDate) {
     }
     box.innerHTML = html;
   } else {
-    box.innerHTML = `<div class="info-date" style="margin-top:20px;">End of Roster</div><div style="color:#94a3b8; font-style:italic;">No future duties found.</div>`;
+    box.innerHTML = `<div class="info-date" style="margin-top:14px;">End of Roster</div><div style="color:#94a3b8; font-style:italic;">No future duties found.</div>`;
   }
 }
 
@@ -915,8 +1069,8 @@ function showDailySummary(dayNum) {
   sortedKeys.forEach(shiftCode => {
     if (tally[shiftCode] > 0) {
       tallyContent.innerHTML += `
-        <div style="display: flex; align-items: center; gap: 4px; font-size: 0.85rem;">
-          ${getBadgeHtml(shiftCode, true)} <span style="font-weight: 700; color: #475569; margin-right: 10px;">x${tally[shiftCode]}</span>
+        <div style="display: flex; align-items: center; gap: 4px; font-size: 0.8rem;">
+          ${getBadgeHtml(shiftCode, true)} <span style="font-weight: 700; color: #475569; margin-right: 8px;">x${tally[shiftCode]}</span>
         </div>`;
     }
   });
@@ -933,16 +1087,16 @@ function updateEditModeUI() {
   const btn = document.getElementById('toggleEditBtn');
   const notice = document.getElementById('calModeNotice');
   if (isEditMode) {
-    btn.innerHTML = "❌ Exit Edit Mode";
+    btn.innerHTML = "❌ Exit Edit";
     btn.style.background = "#fee2e2";
     btn.style.color = "#dc2626";
-    notice.innerText = "(Click a day to override)";
+    notice.innerText = "(Click day to override)";
     notice.style.color = "#dc2626";
   } else {
-    btn.innerHTML = "✏️ Edit Roster";
+    btn.innerHTML = "✏️ Edit";
     btn.style.background = "#fff";
     btn.style.color = "#1e293b";
-    notice.innerText = "(Click a day to view summary)";
+    notice.innerText = "(Click day to view summary)";
     notice.style.color = "#64748b";
   }
 }
@@ -1046,7 +1200,7 @@ function renderStaffLeaveBox(staffId) {
   const box = document.getElementById("staffLeaveBox");
   let myReqs = leaveRequests.filter(r => r.staffId === staffId).sort((a, b) => b.timestamp - a.timestamp);
   if (myReqs.length === 0) {
-    box.innerHTML = `<div style="font-size:0.85rem; color:#64748b; font-style:italic; text-align:center; padding:10px 0;">No leave requests found.</div>`;
+    box.innerHTML = `<div style="font-size:0.8rem; color:#64748b; font-style:italic; text-align:center; padding:8px 0;">No leave requests found.</div>`;
     return;
   }
   box.innerHTML = "";
