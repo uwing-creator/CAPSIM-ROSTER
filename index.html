@@ -232,7 +232,20 @@
   .color-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin-top: 10px; }
   .color-item { display: flex; align-items: center; justify-content: space-between; background: #f8fafc; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); font-size: 0.8rem; font-weight: 600; }
   
-  .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); z-index: 1000; align-items: center; justify-content: center; padding: 14px; }
+  /* Modal Overlay - Increased to 20000 so all modals appear on top of Matrix Builder */
+  .modal-overlay { 
+    display: none; 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    background: rgba(15, 23, 42, 0.65); 
+    z-index: 20000; 
+    align-items: center; 
+    justify-content: center; 
+    padding: 14px; 
+  }
   .role-badge { font-size: 0.72rem; padding: 3px 6px; border-radius: 4px; font-weight: 600; margin-left: 6px; }
   .role-staff { background: #e2e8f0; color: #475569; }
   .role-admin { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
@@ -260,7 +273,7 @@
   .alarm-day-row:hover { background: #f1f5f9; }
   .alarm-day-row.excluded { opacity: 0.5; background: #f1f5f9; }
 
-  /* Interactive Matrix Roster Builder Styles */
+  /* Interactive Matrix Roster Builder Styles (z-index: 10001) */
   #matrixBuilderModal {
     position: fixed;
     top: 0;
@@ -344,7 +357,7 @@
     border: 1px solid #cbd5e1;
     padding: 6px 4px;
     text-align: center;
-    min-width: 52px;
+    min-width: 54px;
   }
   .matrix-table th {
     background: #f8fafc;
@@ -641,7 +654,7 @@
   </div>
 </div>
 
-<!-- Add Shift Code Modal -->
+<!-- Add Shift Code Modal (z-index: 20000 ensures it appears over Matrix) -->
 <div id="addCodeModal" class="modal-overlay">
   <div class="card" style="width: 100%; max-width: 320px; margin: auto;">
     <h2 style="border:none; margin-bottom: 5px;">➕ Add Shift Code</h2>
@@ -654,7 +667,7 @@
     <input type="text" id="newCodeDescInput" class="btn" style="margin-top:4px; margin-bottom:10px;" placeholder="e.g. 09:00 - 18:00 or Standby Duty">
 
     <label style="font-size:0.8rem; font-weight:bold; color:#475569;">Badge Color:</label>
-    <input type="color" id="newCodeColorInput" value="#e2e8f0" style="width:100%; height:38px; border-radius:6px; border:1px solid #cbd5e1; margin-top:4px; margin-bottom:16px; cursor:pointer;">
+    <input type="color" id="newCodeColorInput" value="#93c5fd" style="width:100%; height:38px; border-radius:6px; border:1px solid #cbd5e1; margin-top:4px; margin-bottom:16px; cursor:pointer;">
 
     <div style="display:flex; gap:8px;">
       <button class="btn" style="flex:1;" onclick="closeAddCodeModal()">Cancel</button>
@@ -875,7 +888,7 @@
 </div>
 
 <!-- Forced Worker Acknowledgement Modal (Staff Pop-up Gate) -->
-<div id="forcedAckModal" class="modal-overlay" style="z-index: 10000; background: rgba(15, 23, 42, 0.85);">
+<div id="forcedAckModal" class="modal-overlay" style="background: rgba(15, 23, 42, 0.85);">
   <div class="card" style="width: 100%; max-width: 380px; margin: auto; border-top: 5px solid #ef4444;">
     <div style="font-size:1.8rem; margin-bottom:6px;">⚠️</div>
     <h2 style="border:none; margin-bottom: 5px; color:#991b1b;" id="forcedAckTitle"></h2>
@@ -1538,7 +1551,7 @@ function togglePublishCurrentMonth() {
   });
 }
 
-// --- DYNAMIC SHIFT PALETTE MANAGEMENT (ADD & REMOVE CODES) ---
+// --- DYNAMIC SHIFT PALETTE MANAGEMENT ---
 function renderPaletteButtons() {
   const container = document.getElementById('paletteButtonContainer');
   if (!container) return;
@@ -1648,7 +1661,7 @@ function executeRemoveShiftCode() {
   });
 }
 
-// --- FULL SCREEN INTERACTIVE MATRIX BUILDER (EXACT CA & WD FLOW) ---
+// --- FULL SCREEN INTERACTIVE MATRIX BUILDER ---
 function openMatrixBuilder() {
   if (currentRole !== 'admin') return;
   const monthKey = document.getElementById("monthSelect").value;
@@ -1726,7 +1739,6 @@ function renderMatrixBody(totalDays) {
   });
 }
 
-// STRICT CA & WD Manning Counter
 function updateMatrixBottomManning(totalDays) {
   const monthKey = document.getElementById("monthSelect").value;
   const targets = monthlyManningTargets[monthKey] || {};
@@ -1740,13 +1752,9 @@ function updateMatrixBottomManning(totalDays) {
 
     matrixDraftCopy.forEach(staff => {
       let s = (staff.shifts[dayIdx] || "").trim().toUpperCase();
-      
-      // Strict CA check: Only 'CA' is counted as CA
       if (s === "CA") {
         caCount++;
-      } 
-      // WD bucket: Standard watch duties
-      else if (s === "WD" || s === "WD1" || s === "WD2" || s === "WDP" || s === "WD1A" || s === "WDA") {
+      } else if (s === "WD" || s === "WD1" || s === "WD2" || s === "WDP" || s === "WD1A" || s === "WDA") {
         wdCount++;
       }
     });
@@ -2716,9 +2724,9 @@ function parseAndStoreRoster(rows) {
       while (curr <= end) {
         let reqMonth = `${curr.getFullYear()}-${String(curr.getMonth() + 1).padStart(2, '0')}`;
         let reqDay = curr.getDate();
-        let staff = parsed.find(w => w.id === req.staffId);
-        if (staff && reqDay <= totalDays && reqMonth === detectedMonth) {
-          staff.shifts[reqDay - 1] = req.type;
+        if (reqMonth === detectedMonth && reqDay <= totalDays) {
+          let staff = parsed.find(w => w.id === req.staffId);
+          if (staff) staff.shifts[reqDay - 1] = req.type;
         }
         curr.setDate(curr.getDate() + 1);
       }
