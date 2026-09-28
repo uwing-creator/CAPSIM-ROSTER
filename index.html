@@ -8,17 +8,14 @@
 <!-- Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-analytics-compat.js"></script>
 
 <style>
   :root { --primary: #0f172a; --bg: #f8fafc; --card: #ffffff; --border: #e2e8f0; --accent: #2563eb; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg); color: #1e293b; margin: 0; padding: 20px; }
   
-  /* Lockscreen Entry Gateway */
   #loginGate { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0f172a; z-index: 9999; display: flex; align-items: center; justify-content: center; }
   .login-card { background: #ffffff; border-radius: 12px; padding: 35px 25px; width: 340px; max-width: 90%; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center; }
   
-  /* Main Dashboard UI */
   #mainContent { display: none; }
   .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); padding-bottom: 15px; margin-bottom: 20px; }
   .dashboard-layout { display: grid; grid-template-columns: 2.5fr 1fr; gap: 20px; transition: all 0.3s ease; }
@@ -34,10 +31,8 @@
   .cal-day-header { font-weight: bold; text-align: center; padding: 6px; background: #e2e8f0; border-radius: 4px; font-size: 0.85rem; }
   .cal-day-box { border: 1px solid var(--border); border-radius: 4px; padding: 10px; min-height: 60px; background: #fff; font-size: 0.85rem; display: flex; flex-direction: column; justify-content: space-between; position: relative; transition: all 0.2s ease; }
   
-  /* Clickable for Admins */
   .cal-day-box.admin-clickable { cursor: pointer; }
   .cal-day-box.admin-clickable:hover { border-color: #94a3b8; }
-  
   .cal-day-box.edit-mode:hover { box-shadow: 0 4px 8px rgba(0,0,0,0.1); transform: translateY(-2px); border-color: var(--accent); }
   .cal-day-box.edit-mode::after { content: "✏️"; position: absolute; top: 8px; right: 8px; font-size: 0.7rem; opacity: 0; }
   .cal-day-box.edit-mode:hover::after { opacity: 1; }
@@ -52,6 +47,8 @@
   
   .btn { padding: 8px 14px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; cursor: pointer; font-size: 0.95rem; font-weight: 500; }
   .btn:hover { background: #f1f5f9; }
+  .btn-danger { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
+  .btn-danger:hover { background: #fecaca; }
   select.btn, input.btn { width: 100%; font-size: 1rem; box-sizing: border-box; }
   
   #colorSettings { display: none; margin-bottom: 20px; }
@@ -80,7 +77,6 @@
 </head>
 <body>
 
-<!-- FULL-SCREEN LOGIN GATEWAY -->
 <div id="loginGate">
   <div class="login-card">
     <div style="font-size: 2.2rem; margin-bottom: 8px;">🛫</div>
@@ -91,7 +87,6 @@
   </div>
 </div>
 
-<!-- SECURE DASHBOARD CONTENT -->
 <div id="mainContent">
   <div class="header">
     <div>
@@ -126,15 +121,23 @@
         <div id="requestHistoryContainer" style="max-height: 180px; overflow-y: auto; font-size: 0.85rem; color: #475569;"></div>
       </div>
 
+      <!-- Staff & Month Selector -->
       <div class="card" style="padding-bottom: 15px;">
         <h2 style="border:none; margin-bottom: 10px; padding:0;">👤 Select Staff Member & Month</h2>
         <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
-          <select id="staffSelect" class="btn" onchange="saveSelectionAndUpdate()"></select>
+          <select id="staffSelect" class="btn" onchange="updateDashboard()"></select>
           <select id="monthSelect" class="btn" onchange="handleMonthChange()"></select>
         </div>
-        <!-- Staff Action Row (Request Leave) -->
+        
+        <!-- Staff Action -->
         <div style="display: flex; margin-top: 10px;" id="staffActionRow">
            <button class="btn" style="flex:1; background:#e0f2fe; color:#1e40af; border-color:#bae6fd; font-weight:bold;" onclick="openLeaveModal()">📅 Request Leave</button>
+        </div>
+
+        <!-- Admin Data Operations Row -->
+        <div style="display: none; margin-top: 12px; gap: 8px;" id="adminDataControls">
+          <button class="btn btn-danger" style="flex:1; font-size:0.85rem; font-weight:600;" onclick="deleteCurrentMonthRoster()">🗑️ Delete Current Month</button>
+          <button class="btn btn-danger" style="flex:1; font-size:0.85rem; font-weight:600;" onclick="resetAllRosterData()">⚠️ Reset All Data</button>
         </div>
       </div>
 
@@ -146,7 +149,6 @@
           </div>
         </h2>
 
-        <!-- Daily Staffing Summary (Admin Only) -->
         <div id="dailySummaryContainer" style="display:none; margin-bottom: 15px; background: #f8fafc; border: 1px solid var(--border); border-radius: 6px; padding: 12px; text-align: left;">
           <div style="font-size: 0.85rem; font-weight: 700; color: var(--primary); margin-bottom: 8px;">📊 Staffing Summary for Day <span id="summaryDayDisplay" style="color:var(--accent);">_</span></div>
           <div id="summaryContent" style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.85rem; color: #64748b;">
@@ -175,7 +177,6 @@
         <div id="nextBox" class="info-box"></div>
       </div>
 
-      <!-- Staff Leave Requests Panel -->
       <div class="card" id="staffLeaveCard" style="display: none;">
         <h2>🛎️ My Leave Requests</h2>
         <div id="staffLeaveBox" style="text-align: left; max-height: 180px; overflow-y: auto;"></div>
@@ -183,7 +184,6 @@
     </div>
   </div>
 
-  <!-- Bulletin Board Bottom Card -->
   <div class="card" style="margin-top: 20px;">
     <h2 style="border:none; margin-bottom: 10px; padding:0;">
       📌 Bulletin Board
@@ -194,7 +194,7 @@
 
 </div>
 
-<!-- Manual Shift Override Modal (Admin Only) -->
+<!-- Override Modal (Admin Only) -->
 <div id="editModal" class="modal-overlay">
   <div class="card" style="width: 320px; max-width: 90%; margin: auto;">
     <h2 style="border:none; margin-bottom: 5px;">✏️ Override Shift</h2>
@@ -239,7 +239,7 @@
   </div>
 </div>
 
-<!-- Email Draft Modal (Staff Only) -->
+<!-- Email Draft Modal -->
 <div id="emailDraftModal" class="modal-overlay">
   <div class="card" style="width: 440px; max-width: 90%; margin: auto;">
     <h2 style="border:none; margin-bottom: 5px;">✉️ Email Draft Generated</h2>
@@ -255,11 +255,9 @@
 </div>
 
 <script>
-// --- ACCESS PASSCODES ---
 const STAFF_PASSCODE = "1234";
 const ADMIN_PASSCODE = "8888";
 
-// --- FIREBASE CLOUD CONFIGURATION ---
 const firebaseConfig = {
   apiKey: "AIzaSyCtFWSA_SthEAXaAuDzarU_HkqQAGm0igk",
   authDomain: "cap-roster-dashboard.firebaseapp.com",
@@ -270,41 +268,20 @@ const firebaseConfig = {
   measurementId: "G-YP3K75V55X"
 };
 
-let db = null;
-let docRef = null;
-let analytics = null;
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const docRef = db.collection("rosterSystem").doc("activeRosters");
 
-try {
-  if (typeof firebase !== 'undefined') {
-    firebase.initializeApp(firebaseConfig);
-    db = firebase.firestore();
-    docRef = db.collection("rosterSystem").doc("activeRosters");
-    try { analytics = firebase.analytics(); } catch(e) { }
-  }
-} catch (err) {
-  console.warn("Offline initialization safe fallback:", err);
-}
-
-// --- APP STATE & LOCAL STORAGE ---
-let currentRole = sessionStorage.getItem('capsim_auth_role') || null;
-let rostersByMonth = JSON.parse(localStorage.getItem('capsim_rosters_local')) || {};
-let bulletinBoardText = localStorage.getItem('capsim_bulletin_board') || "";
-let leaveRequests = JSON.parse(localStorage.getItem('capsim_leave_requests')) || [];
-
-leaveRequests.forEach(req => {
-  if (req.date && !req.startDate) {
-    req.startDate = req.date;
-    req.endDate = req.date;
-  }
-});
-localStorage.setItem('capsim_leave_requests', JSON.stringify(leaveRequests));
-
+let currentRole = null;
+let rostersByMonth = {};
+let bulletinBoardText = "";
+let leaveRequests = [];
 let activeEditDay = null;
 let isEditMode = false;
 let isEditingNotes = false;
-let isWritingLocally = false;
+let isUploadingRoster = false;
 
-let shiftMap = JSON.parse(localStorage.getItem('capsim_shift_map')) || {
+let shiftMap = {
   "WD": "08:30 - 17:18", "WD2": "08:30 - 17:18", "CA": "08:30 - 17:18", "WDE": "08:30 - 17:18",
   "WD1": "07:45 - 16:33", "WD1A": "07:45 - 11:39", "WDA": "08:30 - 12:24",
   "WDP": "13:24 - 17:18", "TU": "SIM Admin / Office Duty", "UT": "On-the-Job Training", 
@@ -313,20 +290,15 @@ let shiftMap = JSON.parse(localStorage.getItem('capsim_shift_map')) || {
 };
 
 const DEFAULT_COLORS = { "WD": "#86efac", "WD1": "#93c5fd", "WD2": "#86efac", "CA": "#fde047", "DO": "#cbd5e1", "OFF": "#cbd5e1", "SICK": "#fca5a5", "AL": "#fbcfe8", "UT": "#f472b6", "TU": "#fcd34d", "WDP": "#c084fc" };
-let shiftColors = JSON.parse(localStorage.getItem('capsim_custom_colors')) || { ...DEFAULT_COLORS };
+let shiftColors = { ...DEFAULT_COLORS };
 
-// --- GATEWAY LOGIN LOGIC ---
 function handleGateLogin() {
   const entered = document.getElementById('gatePasscode').value.trim();
   if (entered === ADMIN_PASSCODE) {
     currentRole = 'admin';
-    sessionStorage.setItem('capsim_auth_role', 'admin');
-    if (analytics) analytics.logEvent('login', { method: 'admin_passcode' });
     unlockApp();
   } else if (entered === STAFF_PASSCODE) {
     currentRole = 'staff';
-    sessionStorage.setItem('capsim_auth_role', 'staff');
-    if (analytics) analytics.logEvent('login', { method: 'staff_passcode' });
     unlockApp();
   } else {
     alert("Incorrect passcode. Access Denied.");
@@ -341,20 +313,15 @@ document.getElementById('gatePasscode').addEventListener('keypress', (e) => {
 function unlockApp() {
   document.getElementById('loginGate').style.display = 'none';
   document.getElementById('mainContent').style.display = 'block';
-  
   syncRoleUI();
-  refreshUIAfterCloudSync(); 
   initCloudListener();
   setupFileUploadListener();
-  
-  document.getElementById('bulletinBoardBox').value = bulletinBoardText;
 }
 
 function toggleAdminOrLock() {
   if (currentRole === 'admin') {
     if (confirm("Switch back to Staff View?")) {
       currentRole = 'staff';
-      sessionStorage.setItem('capsim_auth_role', 'staff');
       syncRoleUI();
       updateDashboard();
     }
@@ -362,7 +329,6 @@ function toggleAdminOrLock() {
     const pin = prompt("Enter Admin Passcode:");
     if (pin === ADMIN_PASSCODE) {
       currentRole = 'admin';
-      sessionStorage.setItem('capsim_auth_role', 'admin');
       syncRoleUI();
       updateDashboard();
     } else if (pin !== null) {
@@ -380,6 +346,7 @@ function syncRoleUI() {
   const staffActionRow = document.getElementById('staffActionRow');
   const adminLeavePanel = document.getElementById('adminLeavePanel');
   const staffLeaveCard = document.getElementById('staffLeaveCard');
+  const adminDataControls = document.getElementById('adminDataControls');
   
   const toggleEditBtn = document.getElementById('toggleEditBtn');
   const dailySummaryContainer = document.getElementById('dailySummaryContainer');
@@ -400,6 +367,7 @@ function syncRoleUI() {
     staffActionRow.style.display = 'none';
     adminLeavePanel.style.display = 'block';
     staffLeaveCard.style.display = 'none';
+    adminDataControls.style.display = 'flex';
     
     isEditMode = false;
     isEditingNotes = false;
@@ -421,6 +389,7 @@ function syncRoleUI() {
     staffActionRow.style.display = 'flex';
     adminLeavePanel.style.display = 'none';
     staffLeaveCard.style.display = 'block';
+    adminDataControls.style.display = 'none';
     
     isEditMode = false;
     isEditingNotes = false;
@@ -429,437 +398,42 @@ function syncRoleUI() {
   }
 }
 
-// --- LEAVE MANAGEMENT (STAFF SIDE) ---
-function openLeaveModal() {
-  const staffSelect = document.getElementById("staffSelect");
-  if (!staffSelect || !staffSelect.value) {
-    alert("Please select a staff member first.");
-    return;
-  }
-  
-  let staffName = staffSelect.options[staffSelect.selectedIndex].text;
-  document.getElementById('leaveStaffDisplay').innerText = staffName;
-  
-  let now = new Date();
-  let minDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  
-  let nextMonthEnd = new Date(now.getFullYear(), now.getMonth() + 2, 0); 
-  let maxDate = `${nextMonthEnd.getFullYear()}-${String(nextMonthEnd.getMonth() + 1).padStart(2, '0')}-${String(nextMonthEnd.getDate()).padStart(2, '0')}`;
-  
-  let startInput = document.getElementById('leaveDateStart');
-  let endInput = document.getElementById('leaveDateEnd');
-  
-  startInput.min = minDate;
-  startInput.max = maxDate;
-  startInput.value = minDate;
-
-  endInput.min = minDate;
-  endInput.max = maxDate;
-  endInput.value = minDate;
-  
-  document.getElementById('leaveModal').style.display = 'flex';
-}
-
-function closeLeaveModal() {
-  document.getElementById('leaveModal').style.display = 'none';
-}
-
-function submitLeaveRequest() {
-  const staffSelect = document.getElementById("staffSelect");
-  const staffId = staffSelect.value;
-  const staffNameText = staffSelect.options[staffSelect.selectedIndex].text;
-  const staffName = staffNameText.split(" - ")[1] || staffId;
-  const startDate = document.getElementById('leaveDateStart').value;
-  const endDate = document.getElementById('leaveDateEnd').value;
-  const type = document.getElementById('leaveTypeInput').value;
-  
-  if (!startDate || !endDate) { alert("Please select start and end dates."); return; }
-  if (startDate > endDate) { alert("End date cannot be before start date."); return; }
-
-  const dateString = startDate === endDate ? startDate : `${startDate} to ${endDate}`;
-  const leaveName = type === 'AL' ? 'Annual Leave (AL)' : 'Sick Leave';
-
-  const newReq = {
-    id: "req_" + Date.now().toString() + Math.random().toString(36).substr(2, 5),
-    staffId: staffId,
-    staffName: staffName,
-    startDate: startDate,
-    endDate: endDate,
-    type: type,
-    status: "pending",
-    timestamp: Date.now()
-  };
-
-  leaveRequests.push(newReq);
-  isWritingLocally = true;
-  localStorage.setItem('capsim_leave_requests', JSON.stringify(leaveRequests));
-  
-  if (docRef) {
-    docRef.set({ leaveRequests: leaveRequests }, { merge: true })
-      .then(() => { setTimeout(() => { isWritingLocally = false; }, 1000); })
-      .catch(err => { setTimeout(() => { isWritingLocally = false; }, 1000); });
-  } else {
-    setTimeout(() => { isWritingLocally = false; }, 1000);
-  }
-
-  closeLeaveModal();
-  updateDashboard();
-  
-  const draftTitle = `Title: Leave Request - ${staffName} (${staffId}) [${leaveName}]`;
-  const draftBody = `Dear Admin,\n\nI would like to request ${leaveName} from ${dateString}.\nThank you.\n\nBest Regards,\n${staffName} (${staffId})`;
-  const fullDraftText = `${draftTitle}\n\n${draftBody}`;
-  
-  document.getElementById('emailDraftContent').value = fullDraftText;
-  document.getElementById('copyDraftBtn').innerText = "Copy to Clipboard";
-  document.getElementById('emailDraftModal').style.display = 'flex';
-}
-
-function closeEmailDraftModal() {
-  document.getElementById('emailDraftModal').style.display = 'none';
-}
-
-function copyEmailDraft() {
-  const box = document.getElementById('emailDraftContent');
-  box.select();
-  box.setSelectionRange(0, 99999); 
-  
-  try {
-    navigator.clipboard.writeText(box.value).then(() => {
-      document.getElementById('copyDraftBtn').innerText = "✅ Copied!";
-    });
-  } catch (err) {
-    document.execCommand('copy');
-    document.getElementById('copyDraftBtn').innerText = "✅ Copied!";
-  }
-}
-
-function renderStaffLeaveBox(staffId) {
-  const box = document.getElementById("staffLeaveBox");
-  if (!box) return;
-  
-  let myReqs = leaveRequests.filter(r => r.staffId === staffId);
-  myReqs.sort((a, b) => b.timestamp - a.timestamp);
-
-  if (myReqs.length === 0) {
-    box.innerHTML = `<div style="font-size:0.85rem; color:#64748b; font-style:italic; text-align:center; padding: 10px 0;">No leave requests found.</div>`;
-    return;
-  }
-
-  box.innerHTML = "";
-  myReqs.forEach(req => {
-    let dateStr = req.startDate === req.endDate ? req.startDate : `${req.startDate} to ${req.endDate}`;
-    let statusIcon = req.status === 'approved' ? '✅' : (req.status === 'denied' ? '❌' : '⏳');
-    let statusColor = req.status === 'approved' ? '#16a34a' : (req.status === 'denied' ? '#dc2626' : '#ca8a04');
-    
-    let el = document.createElement('div');
-    el.className = 'leave-history-item';
-    el.innerHTML = `
-      <div><span style="color:#475569; font-size:0.85rem; font-weight:bold;">${dateStr}</span> <span style="font-size:0.8rem; color:#64748b; margin-left: 4px;">(${req.type})</span></div>
-      <div style="font-size:0.85rem; font-weight:bold; color:${statusColor}; text-transform:capitalize;">${statusIcon} ${req.status}</div>
-    `;
-    box.appendChild(el);
-  });
-}
-
-// --- LEAVE MANAGEMENT (ADMIN SIDE) ---
-function renderLeaveRequests() {
-  if (currentRole !== 'admin') return;
-
-  const pendingContainer = document.getElementById('pendingRequestsContainer');
-  const historyContainer = document.getElementById('requestHistoryContainer');
-  
-  pendingContainer.innerHTML = "";
-  historyContainer.innerHTML = "";
-
-  let d = new Date();
-  let past = new Date(d.getFullYear(), d.getMonth() - 1, 1);
-  let current = new Date(d.getFullYear(), d.getMonth(), 1);
-  let next = new Date(d.getFullYear(), d.getMonth() + 1, 1);
-  
-  function toYYYYMM(dateObj) {
-    return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
-  }
-  let allowedMonths = [toYYYYMM(past), toYYYYMM(current), toYYYYMM(next)];
-
-  let pendingCount = 0;
-  let historyLogs = [];
-
-  leaveRequests.forEach(req => {
-    if (!req.startDate) return; 
-
-    let dateStr = req.startDate === req.endDate ? req.startDate : `${req.startDate} to ${req.endDate}`;
-
-    if (req.status === 'pending') {
-      pendingCount++;
-      let el = document.createElement('div');
-      el.className = 'leave-item';
-      el.innerHTML = `
-        <div><b>${req.staffId}</b> - ${req.staffName} <br> <span style="color:#64748b;">${dateStr} (${req.type})</span></div>
-        <div style="display:flex; align-items:center; gap:5px;">
-          <button class="btn-icon" style="color:#16a34a;" onclick="processLeave('${req.id}', 'approved')" title="Approve">✅</button>
-          <button class="btn-icon" style="color:#dc2626;" onclick="processLeave('${req.id}', 'denied')" title="Deny">❌</button>
-          <button class="btn-icon" style="color:#94a3b8; font-size:1rem;" onclick="deleteLeaveRequest('${req.id}')" title="Delete">🗑️</button>
-        </div>
-      `;
-      pendingContainer.appendChild(el);
-    } else {
-      let reqMonth = req.startDate.substring(0, 7);
-      if (allowedMonths.includes(reqMonth)) {
-        historyLogs.push(req);
-      }
-    }
-  });
-
-  if (pendingCount === 0) {
-    pendingContainer.innerHTML = `<div style="font-size:0.85rem; color:#64748b; font-style:italic;">No pending requests.</div>`;
-  }
-
-  historyLogs.sort((a, b) => a.staffId.localeCompare(b.staffId));
-  
-  if (historyLogs.length === 0) {
-    historyContainer.innerHTML = `<div style="font-style:italic; color:#94a3b8;">No recent history.</div>`;
-  } else {
-    historyLogs.forEach(req => {
-      let dateStr = req.startDate === req.endDate ? req.startDate : `${req.startDate} to ${req.endDate}`;
-      let statusIcon = req.status === 'approved' ? '✅' : '❌';
-      let statusColor = req.status === 'approved' ? '#16a34a' : '#dc2626';
-      
-      let el = document.createElement('div');
-      el.className = 'leave-history-item';
-      el.innerHTML = `
-        <div><b>${req.staffId}</b> <span style="color:#64748b; margin-left:4px; font-size:0.8rem;">${dateStr} (${req.type})</span></div>
-        <div style="display:flex; align-items:center; gap:8px;">
-          <span style="text-transform:capitalize; font-size:0.8rem; color:${statusColor}">${statusIcon} ${req.status}</span>
-          <button class="btn-icon" style="color:#94a3b8; font-size:0.9rem;" onclick="deleteLeaveRequest('${req.id}')" title="Delete from log">🗑️</button>
-        </div>
-      `;
-      historyContainer.appendChild(el);
-    });
-  }
-}
-
-function processLeave(reqId, newStatus) {
-  let reqIndex = leaveRequests.findIndex(r => r.id === reqId);
-  if (reqIndex === -1) return;
-
-  let req = leaveRequests[reqIndex];
-  req.status = newStatus;
-
-  isWritingLocally = true;
-
-  if (newStatus === 'approved') {
-    let [sY, sM, sD] = req.startDate.split('-').map(Number);
-    let [eY, eM, eD] = req.endDate.split('-').map(Number);
-    
-    let curr = new Date(sY, sM - 1, sD);
-    let end = new Date(eY, eM - 1, eD);
-
-    while (curr <= end) {
-      let y = curr.getFullYear();
-      let m = String(curr.getMonth() + 1).padStart(2, '0');
-      let reqMonth = `${y}-${m}`;
-      let dayNum = curr.getDate();
-
-      if (rostersByMonth[reqMonth]) {
-        let staff = rostersByMonth[reqMonth].find(w => w.id === req.staffId);
-        if (staff && dayNum <= staff.shifts.length) {
-          staff.shifts[dayNum - 1] = req.type;
-        }
-      }
-      curr.setDate(curr.getDate() + 1);
-    }
-  }
-
-  localStorage.setItem('capsim_leave_requests', JSON.stringify(leaveRequests));
-  localStorage.setItem('capsim_rosters_local', JSON.stringify(rostersByMonth));
-  
-  renderLeaveRequests();
-  updateDashboard();
-
-  if (docRef) {
-    docRef.set({ 
-      leaveRequests: leaveRequests,
-      rostersByMonth: rostersByMonth,
-      lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true }).then(() => {
-      setTimeout(() => { isWritingLocally = false; }, 1000);
-    }).catch(err => {
-      setTimeout(() => { isWritingLocally = false; }, 1000);
-    });
-  } else {
-    setTimeout(() => { isWritingLocally = false; }, 1000);
-  }
-}
-
-function deleteLeaveRequest(reqId) {
-  if (currentRole !== 'admin') return;
-  if (!confirm("Delete this leave request permanently?")) return;
-
-  leaveRequests = leaveRequests.filter(r => r.id !== reqId);
-  
-  isWritingLocally = true;
-  localStorage.setItem('capsim_leave_requests', JSON.stringify(leaveRequests));
-  
-  renderLeaveRequests();
-  updateDashboard();
-
-  if (docRef) {
-    docRef.set({ leaveRequests: leaveRequests }, { merge: true })
-      .then(() => { setTimeout(() => { isWritingLocally = false; }, 1000); })
-      .catch(err => { setTimeout(() => { isWritingLocally = false; }, 1000); });
-  } else {
-    setTimeout(() => { isWritingLocally = false; }, 1000);
-  }
-}
-
-// --- BULLETIN BOARD LOGIC ---
-function toggleEditNotes() {
-  if (isEditingNotes) {
-    saveGeneralNotes();
-  } else {
-    isEditingNotes = true;
-    updateNotesUI();
-    document.getElementById('bulletinBoardBox').focus();
-  }
-}
-
-function updateNotesUI() {
-  const btn = document.getElementById('editNotesBtn');
-  const box = document.getElementById('bulletinBoardBox');
-  if (isEditingNotes) {
-    btn.innerHTML = "💾 Save Board";
-    btn.style.background = "#dcfce7";
-    btn.style.color = "#166534";
-    btn.style.borderColor = "#86efac";
-    box.readOnly = false;
-    box.style.backgroundColor = "#ffffff";
-  } else {
-    btn.innerHTML = "✏️ Edit Board";
-    btn.style.background = "#fff";
-    btn.style.color = "#1e293b";
-    btn.style.borderColor = "#cbd5e1";
-    box.readOnly = true;
-    box.style.backgroundColor = "#f8fafc";
-  }
-}
-
-function saveGeneralNotes() {
-  if (currentRole !== 'admin') return;
-  
-  const box = document.getElementById('bulletinBoardBox');
-  bulletinBoardText = box.value;
-  
-  isEditingNotes = false;
-  updateNotesUI();
-
-  isWritingLocally = true;
-  localStorage.setItem('capsim_bulletin_board', bulletinBoardText);
-  
-  if (docRef) {
-    docRef.set({ generalNotes: bulletinBoardText }, { merge: true })
-      .then(() => {
-        document.getElementById("cloudStatus").innerText = `Live Cloud Sync • Board Saved ${new Date().toLocaleTimeString()}`;
-        setTimeout(() => { isWritingLocally = false; }, 1000);
-      })
-      .catch(err => {
-        document.getElementById("cloudStatus").innerText = "Saved locally (Offline mode)";
-        setTimeout(() => { isWritingLocally = false; }, 1000);
-      });
-  } else {
-    document.getElementById("cloudStatus").innerText = "Saved locally (Offline mode)";
-    setTimeout(() => { isWritingLocally = false; }, 1000);
-  }
-}
-
-// --- CALENDAR EDIT TOGGLE ---
-function toggleEditMode() {
-  isEditMode = !isEditMode;
-  updateEditModeUI();
-  updateDashboard();
-}
-
-function updateEditModeUI() {
-  const btn = document.getElementById('toggleEditBtn');
-  const notice = document.getElementById('calModeNotice');
-  if (isEditMode) {
-    btn.innerHTML = "❌ Exit Edit Mode";
-    btn.style.background = "#fee2e2";
-    btn.style.color = "#dc2626";
-    btn.style.borderColor = "#fca5a5";
-    notice.innerText = "(Click a day to override)";
-    notice.style.color = "#dc2626";
-  } else {
-    btn.innerHTML = "✏️ Edit Roster";
-    btn.style.background = "#fff";
-    btn.style.color = "#1e293b";
-    btn.style.borderColor = "#cbd5e1";
-    notice.innerText = "(Click a day to view summary)";
-    notice.style.color = "#64748b";
-  }
-}
-
-// --- CLOUD ENGINE ---
+// --- CLOUD FIRESTORE ENGINE (NO OFFLINE CACHE CONFUSION) ---
 function initCloudListener() {
-  if (!docRef) {
-    document.getElementById("cloudStatus").innerText = "Offline Mode (Local Cache Active)";
-    return;
-  }
-
   docRef.onSnapshot((doc) => {
-    if (isWritingLocally) return; 
+    if (isUploadingRoster) return;
 
     if (doc.exists) {
       const data = doc.data();
-      if (data.rostersByMonth && Object.keys(data.rostersByMonth).length > 0) {
-        rostersByMonth = data.rostersByMonth;
-        localStorage.setItem('capsim_rosters_local', JSON.stringify(rostersByMonth));
-      }
-      if (data.shiftMap) {
-        shiftMap = { ...shiftMap, ...data.shiftMap };
-        localStorage.setItem('capsim_shift_map', JSON.stringify(shiftMap));
-      }
-      if (data.shiftColors) {
-        shiftColors = { ...DEFAULT_COLORS, ...shiftColors, ...data.shiftColors };
-        localStorage.setItem('capsim_custom_colors', JSON.stringify(shiftColors));
-      }
-      if (data.generalNotes !== undefined) {
-        bulletinBoardText = data.generalNotes;
-        localStorage.setItem('capsim_bulletin_board', bulletinBoardText);
-        if (!isEditingNotes) {
-          document.getElementById('bulletinBoardBox').value = bulletinBoardText;
-        }
-      }
-      if (data.leaveRequests) {
-        leaveRequests = data.leaveRequests;
-        leaveRequests.forEach(req => {
-          if (req.date && !req.startDate) {
-            req.startDate = req.date;
-            req.endDate = req.date;
-          }
-        });
-        localStorage.setItem('capsim_leave_requests', JSON.stringify(leaveRequests));
-        renderLeaveRequests();
-      }
-      document.getElementById("cloudStatus").innerText = `Live Cloud Sync • Connected ${new Date().toLocaleTimeString()}`;
+      rostersByMonth = data.rostersByMonth || {};
+      shiftMap = { ...shiftMap, ...(data.shiftMap || {}) };
+      shiftColors = { ...DEFAULT_COLORS, ...(data.shiftColors || {}) };
+      bulletinBoardText = data.generalNotes || "";
+      leaveRequests = data.leaveRequests || [];
+      
+      document.getElementById('bulletinBoardBox').value = bulletinBoardText;
+      document.getElementById("cloudStatus").innerText = `Live Cloud Sync • ${new Date().toLocaleTimeString()}`;
     } else {
-      document.getElementById("cloudStatus").innerText = "Online • No cloud roster loaded.";
+      document.getElementById("cloudStatus").innerText = "Online • Ready for initial upload.";
+      rostersByMonth = {};
     }
+    
     refreshUIAfterCloudSync();
+    renderLeaveRequests();
   }, (err) => {
-    document.getElementById("cloudStatus").innerText = "Offline Mode (Local Cache Active)";
-    refreshUIAfterCloudSync();
+    document.getElementById("cloudStatus").innerText = `Cloud Error: ${err.message}`;
   });
 }
 
 function refreshUIAfterCloudSync() {
   const monthSelect = document.getElementById("monthSelect");
-  if (!monthSelect) return;
   const prevMonth = monthSelect.value;
   monthSelect.innerHTML = "";
   
   let months = Object.keys(rostersByMonth).sort();
   if (months.length === 0) {
-    document.getElementById("staffSelect").innerHTML = "<option>Waiting for roster upload...</option>";
+    document.getElementById("staffSelect").innerHTML = "<option>No rosters uploaded</option>";
+    document.getElementById("calendarGrid").innerHTML = "";
     return;
   }
 
@@ -871,15 +445,10 @@ function refreshUIAfterCloudSync() {
     monthSelect.appendChild(opt);
   });
 
-  const now = new Date();
-  const currentSysMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  
   if (months.includes(prevMonth)) {
     monthSelect.value = prevMonth;
-  } else if (months.includes(currentSysMonth)) {
-    monthSelect.value = currentSysMonth;
-  } else if (months.length > 0) {
-    monthSelect.value = months[months.length-1];
+  } else {
+    monthSelect.value = months[months.length - 1];
   }
 
   populateStaffSelect();
@@ -892,7 +461,226 @@ function handleMonthChange() {
   updateDashboard();
 }
 
-// --- UTILITY & RENDERING ---
+function populateStaffSelect() {
+  const staffSelect = document.getElementById("staffSelect");
+  const monthKey = document.getElementById("monthSelect").value;
+  if (!monthKey || !rostersByMonth[monthKey]) return;
+
+  const prevStaff = staffSelect.value;
+  staffSelect.innerHTML = "";
+  
+  const staffList = rostersByMonth[monthKey];
+  staffList.forEach(w => {
+    let opt = document.createElement("option");
+    opt.value = w.id;
+    opt.text = `${w.id} - ${w.name}`;
+    staffSelect.appendChild(opt);
+  });
+
+  if (prevStaff && staffList.some(o => o.id === prevStaff)) {
+    staffSelect.value = prevStaff;
+  } else if (staffList.length > 0) {
+    staffSelect.value = staffList[0].id;
+  }
+}
+
+function updateDashboard() {
+  const monthKey = document.getElementById("monthSelect").value;
+  const staffId = document.getElementById("staffSelect").value;
+  if (!monthKey || !staffId || !rostersByMonth[monthKey]) return;
+
+  const monthRoster = rostersByMonth[monthKey];
+  let staff = monthRoster.find(w => w.id === staffId);
+  if (!staff) {
+    staff = monthRoster[0];
+    if (staff) document.getElementById("staffSelect").value = staff.id;
+  }
+  if (!staff) return;
+
+  const [yyyy, mm] = monthKey.split("-").map(Number);
+  const now = new Date();
+  let highlightToday = (now.getFullYear() === yyyy && now.getMonth() + 1 === mm) ? now.getDate() : -1;
+
+  renderCalendar(staff, yyyy, mm, highlightToday);
+
+  document.getElementById('summaryDayDisplay').innerText = "_";
+  document.getElementById('summaryContent').innerHTML = "Click a day below to view the staff shift breakdown.";
+
+  if (currentRole !== 'admin') {
+    renderTodayBox(staff, yyyy, mm, now);
+    renderNextShiftBox(staff.id, now);
+    renderStaffLeaveBox(staff.id);
+  }
+}
+
+// --- ADMIN DATA CONTROLS (DELETE ACTIONS) ---
+function deleteCurrentMonthRoster() {
+  if (currentRole !== 'admin') return;
+  const monthKey = document.getElementById("monthSelect").value;
+  if (!monthKey || !rostersByMonth[monthKey]) {
+    alert("No active month selected to delete.");
+    return;
+  }
+
+  if (!confirm(`Are you sure you want to completely DELETE the roster for ${monthKey}?`)) return;
+
+  delete rostersByMonth[monthKey];
+
+  docRef.update({
+    rostersByMonth: rostersByMonth,
+    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(() => {
+    alert(`Roster for ${monthKey} has been removed from cloud.`);
+    refreshUIAfterCloudSync();
+  }).catch(err => {
+    alert(`Failed to delete month: ${err.message}`);
+  });
+}
+
+function resetAllRosterData() {
+  if (currentRole !== 'admin') return;
+  if (!confirm("⚠️ WARNING: This will completely wipe ALL uploaded rosters and leave records in the cloud! Continue?")) return;
+  if (!confirm("Confirm a second time: Wipe everything?")) return;
+
+  rostersByMonth = {};
+  leaveRequests = [];
+
+  docRef.set({
+    rostersByMonth: {},
+    leaveRequests: [],
+    generalNotes: bulletinBoardText,
+    shiftMap: shiftMap,
+    shiftColors: shiftColors,
+    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(() => {
+    alert("All roster data wiped successfully. You can now perform a clean upload.");
+    refreshUIAfterCloudSync();
+  }).catch(err => {
+    alert(`Failed to reset database: ${err.message}`);
+  });
+}
+
+// --- FILE UPLOADER WITH DIRECT CLOUD WRITE ---
+function setupFileUploadListener() {
+  const fileInput = document.getElementById('fileInput');
+  if (!fileInput) return;
+  
+  fileInput.onchange = function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      try {
+        const data = new Uint8Array(evt.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName], { header: 1 });
+        parseAndStoreRoster(rows);
+      } catch (err) {
+        alert("Error reading Excel file: " + err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = ''; 
+  };
+}
+
+function parseAndStoreRoster(rows) {
+  let detectedMonth = null;
+  
+  for (let i = 0; i < Math.min(10, rows.length); i++) {
+    for (let j = 0; j < 5; j++) {
+      let cell = String(rows[i]?.[j] || "");
+      let m = cell.match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[- ]*(\d{4})/i);
+      if (m) {
+        let mm = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"].indexOf(m[1].toUpperCase()) + 1;
+        detectedMonth = `${m[2]}-${String(mm).padStart(2,'0')}`;
+        break;
+      }
+    }
+    if (detectedMonth) break;
+  }
+  
+  if (!detectedMonth) {
+    detectedMonth = prompt("Could not auto-detect month. Enter Month (YYYY-MM):", "2026-10");
+    if (!detectedMonth) return;
+  }
+
+  let [y, m] = detectedMonth.split("-").map(Number);
+  let totalDays = new Date(y, m, 0).getDate();
+  let parsed = [];
+
+  rows.forEach(r => {
+    if (!r || r.length < 3) return;
+    let idCol = String(r[0] || '').trim();
+    
+    if (/^T\d+$/i.test(idCol)) {
+      let staffName = String(r[1] || '').trim();
+      let shiftList = [];
+      
+      for (let day = 1; day <= totalDays; day++) {
+        let val = r[day + 1];
+        shiftList.push(val !== undefined && val !== null ? String(val).trim().toUpperCase() : '');
+      }
+      
+      parsed.push({ 
+        id: idCol.toUpperCase(), 
+        name: staffName, 
+        shifts: shiftList 
+      });
+    }
+  });
+
+  if (parsed.length === 0) {
+    alert("Could not identify staff rows. Ensure Column A has staff IDs starting with T followed by digits (e.g. T01).");
+    return;
+  }
+
+  isUploadingRoster = true;
+
+  // Apply pre-approved leaves
+  leaveRequests.forEach(req => {
+    if (req.status === 'approved') {
+      let [sY, sM, sD] = req.startDate.split('-').map(Number);
+      let [eY, eM, eD] = req.endDate.split('-').map(Number);
+      let curr = new Date(sY, sM - 1, sD);
+      let end = new Date(eY, eM - 1, eD);
+
+      while (curr <= end) {
+        let reqMonth = `${curr.getFullYear()}-${String(curr.getMonth() + 1).padStart(2, '0')}`;
+        if (reqMonth === detectedMonth) {
+          let reqDay = curr.getDate();
+          let staff = parsed.find(w => w.id === req.staffId);
+          if (staff && reqDay <= totalDays) {
+            staff.shifts[reqDay - 1] = req.type;
+          }
+        }
+        curr.setDate(curr.getDate() + 1);
+      }
+    }
+  });
+
+  rostersByMonth[detectedMonth] = parsed;
+
+  docRef.set({
+    rostersByMonth: rostersByMonth,
+    shiftMap: shiftMap,
+    shiftColors: shiftColors,
+    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true })
+  .then(() => {
+    isUploadingRoster = false;
+    alert(`Uploaded successfully! Stored ${parsed.length} staff members (including all new joiners) for ${detectedMonth}.`);
+    refreshUIAfterCloudSync();
+  })
+  .catch(err => {
+    isUploadingRoster = false;
+    alert(`Failed to save to cloud: ${err.message}`);
+  });
+}
+
+// --- SHIFT DISPLAY UTILITIES ---
 function isOffDuty(shift) { 
   let s = (shift || "").trim().toUpperCase(); 
   return s === "" || s === "-" || s === "DO" || s === "OFF"; 
@@ -913,82 +701,54 @@ function getBadgeHtml(shift, small=false) {
   let s = (shift || "").trim().toUpperCase();
   let sizeClass = small ? "badge badge-small" : "badge";
   if (isOffDuty(s)) return `<span class="${sizeClass}" style="background:#f1f5f9; color:#64748b;">${s || 'OFF'}</span>`;
-  
-  let color = shiftColors[s] || DEFAULT_COLORS[s];
-  if (!color) {
-    color = generatePastel(s);
-    shiftColors[s] = color;
-  }
+  let color = shiftColors[s] || DEFAULT_COLORS[s] || generatePastel(s);
   return `<span class="${sizeClass}" style="background:${color}; color:#0f172a;">${s}</span>`;
 }
 
 function getDayName(y, m, d) { return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][new Date(y, m-1, d).getDay()]; }
-function getDaysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
 
-function populateStaffSelect() {
-  const staffSelect = document.getElementById("staffSelect");
-  const monthKey = document.getElementById("monthSelect").value;
-  if (!monthKey || !rostersByMonth[monthKey]) return;
+function renderCalendar(staff, yyyy, mm, highlightTodayNum) {
+  const grid = document.getElementById("calendarGrid");
+  grid.innerHTML = "";
 
-  const prevStaff = staffSelect.value;
-  staffSelect.innerHTML = "";
-  
-  const staffList = rostersByMonth[monthKey];
-  staffList.forEach(w => {
-    let opt = document.createElement("option");
-    opt.value = w.id;
-    opt.text = `${w.id} - ${w.name}`;
-    staffSelect.appendChild(opt);
+  let firstDay = new Date(yyyy, mm - 1, 1).getDay();
+  let offset = firstDay === 0 ? 6 : firstDay - 1; 
+
+  for (let pad = 0; pad < offset; pad++) {
+    let el = document.createElement("div");
+    el.className = "cal-day-box off";
+    grid.appendChild(el);
+  }
+
+  staff.shifts.forEach((shift, index) => {
+    let s = (shift || "").trim().toUpperCase();
+    let dayNum = index + 1;
+    let isOff = isOffDuty(s);
+    let isToday = dayNum === highlightTodayNum;
+    
+    let box = document.createElement("div");
+    box.className = `cal-day-box ${isOff ? 'off' : ''} ${isToday ? 'active' : ''}`;
+    
+    if (currentRole === 'admin') {
+      box.classList.add('admin-clickable');
+      if (isEditMode) {
+        box.classList.add('edit-mode');
+        box.onclick = () => openEditModal(dayNum, s);
+      } else {
+        box.onclick = () => showDailySummary(dayNum);
+      }
+    }
+    
+    box.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <b>${dayNum}</b>
+        ${isToday ? '<span style="color:var(--accent); font-weight:bold; font-size:0.75rem;">Today</span>' : ''}
+      </div>
+      <div style="margin-top:8px;">${getBadgeHtml(s, true)}</div>
+      <div style="font-size:0.75rem; color:#64748b; margin-top:6px; font-weight:500;">${getTime(s)}</div>
+    `;
+    grid.appendChild(box);
   });
-
-  let savedId = localStorage.getItem('capsim_saved_staff');
-  
-  if (prevStaff && staffList.some(o => o.id === prevStaff)) {
-    staffSelect.value = prevStaff;
-  } else if (savedId && staffList.some(o => o.id === savedId)) {
-    staffSelect.value = savedId;
-  } else if (staffList.length > 0) {
-    staffSelect.value = staffList[0].id;
-    localStorage.setItem('capsim_saved_staff', staffList[0].id);
-  }
-}
-
-function saveSelectionAndUpdate() {
-  localStorage.setItem('capsim_saved_staff', document.getElementById("staffSelect").value);
-  updateDashboard();
-}
-
-function updateDashboard() {
-  const monthKey = document.getElementById("monthSelect").value;
-  const staffId = document.getElementById("staffSelect").value;
-  if (!monthKey || !staffId || !rostersByMonth[monthKey]) return;
-
-  const monthRoster = rostersByMonth[monthKey];
-  let staff = monthRoster.find(w => w.id === staffId);
-  
-  if (!staff && monthRoster.length > 0) {
-    staff = monthRoster[0];
-    document.getElementById("staffSelect").value = staff.id;
-    localStorage.setItem('capsim_saved_staff', staff.id);
-  }
-  if (!staff) return;
-
-  const [yyyy, mm] = monthKey.split("-").map(Number);
-  const now = new Date();
-  
-  let highlightToday = -1;
-  if (now.getFullYear() === yyyy && now.getMonth() + 1 === mm) highlightToday = now.getDate();
-
-  renderCalendar(staff, yyyy, mm, highlightToday);
-
-  document.getElementById('summaryDayDisplay').innerText = "_";
-  document.getElementById('summaryContent').innerHTML = "Click a day below to view the staff shift breakdown.";
-
-  if (currentRole !== 'admin') {
-    renderTodayBox(staff, yyyy, mm, now);
-    renderNextShiftBox(staff.id, now);
-    renderStaffLeaveBox(staff.id);
-  }
 }
 
 function renderTodayBox(staff, calY, calM, now) {
@@ -1061,71 +821,15 @@ function renderNextShiftBox(staffId, fromDate) {
       <div class="info-badge-wrap">${getBadgeHtml(nextShiftData.s)}</div>
       <div class="info-time">${getTime(nextShiftData.s)}</div>
     `;
-
-    let targetRoster = rostersByMonth[nextShiftData.monthKey];
-    if (targetRoster) {
-      let colleagues = targetRoster.filter(w => w.id !== staffId && (w.shifts[nextShiftData.d - 1] || "").trim().toUpperCase() === nextShiftData.s);
-      if (colleagues.length > 0) {
-        let names = colleagues.map(c => `<b>${c.name}</b>`).join(", ");
-        html += `<div class="colleagues">👥 <b>Working With:</b><br>${names}</div>`;
-      }
-    }
     box.innerHTML = html;
   } else {
     box.innerHTML = `<div class="info-date" style="margin-top:20px;">End of Roster</div><div style="color:#94a3b8; font-style:italic;">No future duties found.</div>`;
   }
 }
 
-function renderCalendar(staff, yyyy, mm, highlightTodayNum) {
-  const grid = document.getElementById("calendarGrid");
-  grid.innerHTML = "";
-
-  let firstDay = new Date(yyyy, mm - 1, 1).getDay();
-  let offset = firstDay === 0 ? 6 : firstDay - 1; 
-
-  for (let pad = 0; pad < offset; pad++) {
-    let el = document.createElement("div");
-    el.className = "cal-day-box off";
-    grid.appendChild(el);
-  }
-
-  staff.shifts.forEach((shift, index) => {
-    let s = (shift || "").trim().toUpperCase();
-    let dayNum = index + 1;
-    let isOff = isOffDuty(s);
-    let isToday = dayNum === highlightTodayNum;
-    
-    let box = document.createElement("div");
-    box.className = `cal-day-box ${isOff ? 'off' : ''} ${isToday ? 'active' : ''}`;
-    
-    if (currentRole === 'admin') {
-      box.classList.add('admin-clickable');
-      if (isEditMode) {
-        box.classList.add('edit-mode');
-        box.onclick = () => openEditModal(dayNum, s);
-      } else {
-        box.onclick = () => showDailySummary(dayNum);
-      }
-    }
-    
-    box.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <b>${dayNum}</b>
-        ${isToday ? '<span style="color:var(--accent); font-weight:bold; font-size:0.75rem;">Today</span>' : ''}
-      </div>
-      <div style="margin-top:8px;">${getBadgeHtml(s, true)}</div>
-      <div style="font-size:0.75rem; color:#64748b; margin-top:6px; font-weight:500;">${getTime(s)}</div>
-    `;
-    grid.appendChild(box);
-  });
-}
-
-// --- DAILY SUMMARY (ADMIN NORMAL MODE) ---
 function showDailySummary(dayNum) {
   if (currentRole !== 'admin') return;
-  
   document.getElementById('summaryDayDisplay').innerText = dayNum;
-  
   const monthKey = document.getElementById("monthSelect").value;
   const staffList = rostersByMonth[monthKey] || [];
   let tally = {};
@@ -1138,7 +842,6 @@ function showDailySummary(dayNum) {
 
   const tallyContent = document.getElementById('summaryContent');
   tallyContent.innerHTML = "";
-  
   let sortedKeys = Object.keys(tally).sort((a, b) => a === "DO" ? 1 : b === "DO" ? -1 : a.localeCompare(b));
   
   sortedKeys.forEach(shiftCode => {
@@ -1151,18 +854,38 @@ function showDailySummary(dayNum) {
   });
 }
 
-// --- OVERRIDE MODAL (ADMIN EDIT MODE) ---
+// --- OVERRIDE & MODALS ---
+function toggleEditMode() {
+  isEditMode = !isEditMode;
+  updateEditModeUI();
+  updateDashboard();
+}
+
+function updateEditModeUI() {
+  const btn = document.getElementById('toggleEditBtn');
+  const notice = document.getElementById('calModeNotice');
+  if (isEditMode) {
+    btn.innerHTML = "❌ Exit Edit Mode";
+    btn.style.background = "#fee2e2";
+    btn.style.color = "#dc2626";
+    notice.innerText = "(Click a day to override)";
+    notice.style.color = "#dc2626";
+  } else {
+    btn.innerHTML = "✏️ Edit Roster";
+    btn.style.background = "#fff";
+    btn.style.color = "#1e293b";
+    notice.innerText = "(Click a day to view summary)";
+    notice.style.color = "#64748b";
+  }
+}
+
 function openEditModal(dayNum, currentShift) {
   if (currentRole !== 'admin' || !isEditMode) return;
-  
   activeEditDay = dayNum;
   document.getElementById('editDayDisplay').innerText = dayNum;
   document.getElementById('editShiftInput').value = isOffDuty(currentShift) ? 'DO' : currentShift;
-  
   showDailySummary(dayNum);
-  
   document.getElementById('editModal').style.display = 'flex';
-  setTimeout(() => document.getElementById('editShiftInput').focus(), 100);
 }
 
 function closeEditModal() {
@@ -1170,10 +893,8 @@ function closeEditModal() {
   activeEditDay = null;
 }
 
-// --- SAFE HYBRID SHIFT OVERRIDE ---
 function saveShiftOverride() {
   if (!activeEditDay || currentRole !== 'admin') return;
-  
   const savedDay = activeEditDay;
   const monthKey = document.getElementById("monthSelect").value;
   const staffId = document.getElementById("staffSelect").value;
@@ -1181,258 +902,206 @@ function saveShiftOverride() {
   
   let targetMonth = rostersByMonth[monthKey];
   if (!targetMonth) return;
-  
   let staff = targetMonth.find(w => w.id === staffId);
   if (staff) {
-    isWritingLocally = true;
-
     staff.shifts[savedDay - 1] = newShift;
-    
-    if (newShift && !isOffDuty(newShift) && !shiftMap[newShift]) {
-      shiftMap[newShift] = "Manual Override";
-    }
-
-    delete shiftMap[""];
-    Object.keys(shiftMap).forEach(k => {
-      if (!k.trim()) delete shiftMap[k];
-    });
-
-    localStorage.setItem('capsim_rosters_local', JSON.stringify(rostersByMonth));
-    localStorage.setItem('capsim_shift_map', JSON.stringify(shiftMap));
-    
     closeEditModal();
     updateDashboard();
-    showDailySummary(savedDay);
 
-    if (docRef) {
-      docRef.set({
-        rostersByMonth: rostersByMonth,
-        shiftMap: shiftMap,
-        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true })
-      .then(() => {
-        document.getElementById("cloudStatus").innerText = `Live Cloud Sync • Saved ${new Date().toLocaleTimeString()}`;
-        setTimeout(() => { isWritingLocally = false; }, 1500);
-      })
-      .catch(err => {
-        document.getElementById("cloudStatus").innerText = "Saved locally (Offline mode)";
-        setTimeout(() => { isWritingLocally = false; }, 1500);
-      });
-    } else {
-      document.getElementById("cloudStatus").innerText = "Saved locally (Offline mode)";
-      setTimeout(() => { isWritingLocally = false; }, 1500);
-    }
+    docRef.update({
+      rostersByMonth: rostersByMonth,
+      lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+    });
   }
 }
 
-// --- EXCEL FILE UPLOAD & PARSER ---
-function setupFileUploadListener() {
-  const fileInput = document.getElementById('fileInput');
-  if (!fileInput) return;
+// --- LEAVE & BULLETIN ---
+function openLeaveModal() {
+  const staffSelect = document.getElementById("staffSelect");
+  if (!staffSelect || !staffSelect.value) return;
+  document.getElementById('leaveStaffDisplay').innerText = staffSelect.options[staffSelect.selectedIndex].text;
   
-  fileInput.onchange = function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = function(evt) {
-      try {
-        const data = new Uint8Array(evt.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const firstSheetName = workbook.SheetNames[0];
-        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName], { header: 1 });
-        parseAndStoreRoster(rows);
-      } catch (err) {
-        alert("Error reading Excel file: " + err.message);
-      }
-    };
-    reader.readAsArrayBuffer(file);
-    e.target.value = ''; 
+  let now = new Date();
+  let minDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  document.getElementById('leaveDateStart').value = minDate;
+  document.getElementById('leaveDateEnd').value = minDate;
+  document.getElementById('leaveModal').style.display = 'flex';
+}
+
+function closeLeaveModal() {
+  document.getElementById('leaveModal').style.display = 'none';
+}
+
+function submitLeaveRequest() {
+  const staffSelect = document.getElementById("staffSelect");
+  const staffId = staffSelect.value;
+  const staffNameText = staffSelect.options[staffSelect.selectedIndex].text;
+  const staffName = staffNameText.split(" - ")[1] || staffId;
+  const startDate = document.getElementById('leaveDateStart').value;
+  const endDate = document.getElementById('leaveDateEnd').value;
+  const type = document.getElementById('leaveTypeInput').value;
+  
+  if (!startDate || !endDate) return;
+
+  const newReq = {
+    id: "req_" + Date.now().toString(),
+    staffId: staffId,
+    staffName: staffName,
+    startDate: startDate,
+    endDate: endDate,
+    type: type,
+    status: "pending",
+    timestamp: Date.now()
   };
+
+  leaveRequests.push(newReq);
+  docRef.update({ leaveRequests: leaveRequests });
+
+  closeLeaveModal();
+  updateDashboard();
+  
+  const draftTitle = `Title: Leave Request - ${staffName} (${staffId}) [${type}]`;
+  const draftBody = `Dear Admin,\n\nI would like to request ${type} from ${startDate} to ${endDate}.\nThank you.\n\nBest Regards,\n${staffName} (${staffId})`;
+  document.getElementById('emailDraftContent').value = `${draftTitle}\n\n${draftBody}`;
+  document.getElementById('emailDraftModal').style.display = 'flex';
 }
 
-function parseAndStoreRoster(rows) {
-  let detectedMonth = null;
-  
-  for (let i = 0; i < Math.min(10, rows.length); i++) {
-    for (let j = 0; j < 5; j++) {
-      let cell = String(rows[i]?.[j] || "");
-      let m = cell.match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[- ]*(\d{4})/i);
-      if (m) {
-        let mm = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"].indexOf(m[1].toUpperCase()) + 1;
-        detectedMonth = `${m[2]}-${String(mm).padStart(2,'0')}`;
-        break;
-      }
-    }
-    if (detectedMonth) break;
-  }
-  
-  if (!detectedMonth) {
-    detectedMonth = prompt("Could not auto-detect month. Enter Month (YYYY-MM):", "2026-10");
-    if (!detectedMonth) return;
-  }
+function closeEmailDraftModal() { document.getElementById('emailDraftModal').style.display = 'none'; }
+function copyEmailDraft() {
+  const box = document.getElementById('emailDraftContent');
+  box.select();
+  navigator.clipboard.writeText(box.value);
+  document.getElementById('copyDraftBtn').innerText = "✅ Copied!";
+}
 
-  rows.forEach(r => {
-    if (!r) return;
-    for (let c = 25; c < r.length - 1; c++) {
-      let code = String(r[c] || '').trim().toUpperCase();
-      let tDesc = String(r[c+1] || '').trim();
-      if (code && tDesc && (tDesc.includes('-') || tDesc.toLowerCase().includes('duty') || tDesc.toLowerCase().includes('training') || tDesc.toLowerCase().includes('sim') || tDesc.toLowerCase().includes('surveillance'))) {
-        code.split(/[\/\n,]+/).forEach(sub => {
-          let cl = sub.trim();
-          if (cl && cl.length <= 6) shiftMap[cl] = tDesc;
-        });
-      }
+function renderStaffLeaveBox(staffId) {
+  const box = document.getElementById("staffLeaveBox");
+  let myReqs = leaveRequests.filter(r => r.staffId === staffId).sort((a, b) => b.timestamp - a.timestamp);
+  if (myReqs.length === 0) {
+    box.innerHTML = `<div style="font-size:0.85rem; color:#64748b; font-style:italic; text-align:center; padding:10px 0;">No leave requests found.</div>`;
+    return;
+  }
+  box.innerHTML = "";
+  myReqs.forEach(req => {
+    let dateStr = req.startDate === req.endDate ? req.startDate : `${req.startDate} to ${req.endDate}`;
+    let el = document.createElement('div');
+    el.className = 'leave-history-item';
+    el.innerHTML = `<div><b>${dateStr}</b> (${req.type})</div><div>${req.status}</div>`;
+    box.appendChild(el);
+  });
+}
+
+function renderLeaveRequests() {
+  if (currentRole !== 'admin') return;
+  const pendingContainer = document.getElementById('pendingRequestsContainer');
+  const historyContainer = document.getElementById('requestHistoryContainer');
+  pendingContainer.innerHTML = "";
+  historyContainer.innerHTML = "";
+
+  leaveRequests.forEach(req => {
+    let dateStr = req.startDate === req.endDate ? req.startDate : `${req.startDate} to ${req.endDate}`;
+    if (req.status === 'pending') {
+      let el = document.createElement('div');
+      el.className = 'leave-item';
+      el.innerHTML = `
+        <div><b>${req.staffId}</b> - ${req.staffName} <br><small>${dateStr} (${req.type})</small></div>
+        <div>
+          <button class="btn-icon" onclick="processLeave('${req.id}', 'approved')">✅</button>
+          <button class="btn-icon" onclick="processLeave('${req.id}', 'denied')">❌</button>
+        </div>
+      `;
+      pendingContainer.appendChild(el);
+    } else {
+      let el = document.createElement('div');
+      el.className = 'leave-history-item';
+      el.innerHTML = `<div><b>${req.staffId}</b> ${dateStr} (${req.type})</div><div>${req.status}</div>`;
+      historyContainer.appendChild(el);
     }
   });
+}
 
-  let [y, m] = detectedMonth.split("-").map(Number);
-  let totalDays = getDaysInMonth(y, m);
-  let parsed = [];
+function processLeave(reqId, newStatus) {
+  let req = leaveRequests.find(r => r.id === reqId);
+  if (!req) return;
+  req.status = newStatus;
 
-  rows.forEach(r => {
-    if (!r || r.length < 3) return;
-    let idCol = String(r[0] || '').trim();
-    
-    // Supports any ID beginning with T (e.g., T01, T12, T105)
-    if (/^T\d+$/i.test(idCol)) {
-      let staffName = String(r[1] || '').trim();
-      let shiftList = [];
-      
-      for (let day = 1; day <= totalDays; day++) {
-        let val = r[day + 1];
-        shiftList.push(val !== undefined && val !== null ? String(val).trim().toUpperCase() : '');
-      }
-      
-      parsed.push({ 
-        id: idCol.toUpperCase(), 
-        name: staffName, 
-        shifts: shiftList 
-      });
-    }
-  });
+  if (newStatus === 'approved') {
+    let [sY, sM, sD] = req.startDate.split('-').map(Number);
+    let [eY, eM, eD] = req.endDate.split('-').map(Number);
+    let curr = new Date(sY, sM - 1, sD);
+    let end = new Date(eY, eM - 1, eD);
 
-  if (parsed.length > 0) {
-    isWritingLocally = true;
-
-    // Apply pre-approved leaves
-    leaveRequests.forEach(req => {
-      if (req.status === 'approved') {
-        let [sY, sM, sD] = req.startDate.split('-').map(Number);
-        let [eY, eM, eD] = req.endDate.split('-').map(Number);
-        
-        let curr = new Date(sY, sM - 1, sD);
-        let end = new Date(eY, eM - 1, eD);
-
-        while (curr <= end) {
-          let reqY = curr.getFullYear();
-          let reqM = String(curr.getMonth() + 1).padStart(2, '0');
-          let reqMonth = `${reqY}-${reqM}`;
-
-          if (reqMonth === detectedMonth) {
-            let reqDay = curr.getDate();
-            let staff = parsed.find(w => w.id === req.staffId);
-            if (staff && reqDay <= totalDays) {
-              staff.shifts[reqDay - 1] = req.type;
-            }
-          }
-          curr.setDate(curr.getDate() + 1);
+    while (curr <= end) {
+      let reqMonth = `${curr.getFullYear()}-${String(curr.getMonth() + 1).padStart(2, '0')}`;
+      let dayNum = curr.getDate();
+      if (rostersByMonth[reqMonth]) {
+        let staff = rostersByMonth[reqMonth].find(w => w.id === req.staffId);
+        if (staff && dayNum <= staff.shifts.length) {
+          staff.shifts[dayNum - 1] = req.type;
         }
       }
-    });
-
-    // Replace the month's roster completely with the fresh parsed staff list
-    rostersByMonth[detectedMonth] = parsed;
-    
-    // Keep at most 3 months in memory
-    let sortedKeys = Object.keys(rostersByMonth).sort();
-    while (sortedKeys.length > 3) {
-      delete rostersByMonth[sortedKeys.shift()];
+      curr.setDate(curr.getDate() + 1);
     }
+  }
 
-    delete shiftMap[""];
-    Object.keys(shiftMap).forEach(k => {
-      if (!k.trim()) delete shiftMap[k];
-    });
+  docRef.update({
+    leaveRequests: leaveRequests,
+    rostersByMonth: rostersByMonth
+  });
+}
 
-    localStorage.setItem('capsim_rosters_local', JSON.stringify(rostersByMonth));
-    localStorage.setItem('capsim_shift_map', JSON.stringify(shiftMap));
-
-    refreshUIAfterCloudSync();
-    document.getElementById("monthSelect").value = detectedMonth;
-    populateStaffSelect();
-    updateDashboard();
-
-    alert(`Successfully loaded ${parsed.length} staff for ${detectedMonth}! Pre-approved leaves applied.`);
-
-    if (docRef) {
-      // Overwrite the rostersByMonth payload cleanly
-      docRef.set({
-        rostersByMonth: rostersByMonth,
-        shiftMap: shiftMap,
-        shiftColors: shiftColors,
-        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true })
-      .then(() => {
-        document.getElementById("cloudStatus").innerText = `Live Cloud Sync • Uploaded ${new Date().toLocaleTimeString()}`;
-        setTimeout(() => { isWritingLocally = false; }, 3000);
-      })
-      .catch(err => {
-        console.error("Cloud upload error:", err);
-        document.getElementById("cloudStatus").innerText = "Saved locally (Offline mode)";
-        setTimeout(() => { isWritingLocally = false; }, 3000);
-      });
-    } else {
-      setTimeout(() => { isWritingLocally = false; }, 3000);
-    }
+function toggleEditNotes() {
+  if (isEditingNotes) {
+    bulletinBoardText = document.getElementById('bulletinBoardBox').value;
+    docRef.update({ generalNotes: bulletinBoardText });
+    isEditingNotes = false;
+    updateNotesUI();
   } else {
-    alert("Could not identify staff rows. Ensure Column A has staff IDs starting with T followed by digits (e.g. T01, T02).");
+    isEditingNotes = true;
+    updateNotesUI();
+    document.getElementById('bulletinBoardBox').focus();
   }
 }
 
-// --- COLOR PICKERS ---
+function updateNotesUI() {
+  const btn = document.getElementById('editNotesBtn');
+  const box = document.getElementById('bulletinBoardBox');
+  btn.innerHTML = isEditingNotes ? "💾 Save Board" : "✏️ Edit Board";
+  box.readOnly = !isEditingNotes;
+  box.style.backgroundColor = isEditingNotes ? "#ffffff" : "#f8fafc";
+}
+
 function buildColorPickers() {
   const container = document.getElementById("colorPickerContainer");
   container.innerHTML = "";
   let allCodes = new Set(Object.keys(shiftColors));
-  Object.values(rostersByMonth).forEach(month => {
-    month.forEach(w => w.shifts.forEach(s => { if(!isOffDuty(s)) allCodes.add(s.toUpperCase()); }));
-  });
+  Object.values(rostersByMonth).forEach(m => m.forEach(w => w.shifts.forEach(s => { if(!isOffDuty(s)) allCodes.add(s); })));
 
   allCodes.forEach(code => {
     if (isOffDuty(code)) return;
-    if (!shiftColors[code]) shiftColors[code] = generatePastel(code);
     let div = document.createElement("div");
     div.className = "color-item";
-    div.innerHTML = `<span>${code}</span> <input type="color" value="${shiftColors[code]}" onchange="updateColor('${code}', this.value)">`;
+    div.innerHTML = `<span>${code}</span> <input type="color" value="${shiftColors[code] || '#94a3b8'}" onchange="updateColor('${code}', this.value)">`;
     container.appendChild(div);
   });
 }
 
-function updateColor(code, val) { 
-  shiftColors[code] = val; 
-  localStorage.setItem('capsim_custom_colors', JSON.stringify(shiftColors)); 
-  updateDashboard(); 
-
-  if (docRef) {
-    docRef.set({ shiftColors: shiftColors }, { merge: true }).catch(e => {});
-  }
+function updateColor(code, val) {
+  shiftColors[code] = val;
+  docRef.update({ shiftColors: shiftColors });
+  updateDashboard();
 }
 
-function resetColors() { 
-  shiftColors = { ...DEFAULT_COLORS }; 
-  localStorage.setItem('capsim_custom_colors', JSON.stringify(shiftColors)); 
-  buildColorPickers(); 
-  updateDashboard(); 
-
-  if (docRef) {
-    docRef.set({ shiftColors: shiftColors }, { merge: true }).catch(e => {});
-  }
+function resetColors() {
+  shiftColors = { ...DEFAULT_COLORS };
+  docRef.update({ shiftColors: shiftColors });
+  buildColorPickers();
+  updateDashboard();
 }
 
-function toggleSettings() { 
-  const panel = document.getElementById("colorSettings"); 
-  panel.style.display = panel.style.display === "block" ? "none" : "block"; 
+function toggleSettings() {
+  const panel = document.getElementById("colorSettings");
+  panel.style.display = panel.style.display === "block" ? "none" : "block";
 }
 </script>
 </body>
