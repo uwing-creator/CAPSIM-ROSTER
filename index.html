@@ -285,7 +285,7 @@ try {
   console.warn("Offline initialization safe fallback:", err);
 }
 
-// --- APP STATE & DATA MIGRATION ---
+// --- APP STATE & LOCAL STORAGE ---
 let currentRole = sessionStorage.getItem('capsim_auth_role') || null;
 let rostersByMonth = JSON.parse(localStorage.getItem('capsim_rosters_local')) || {};
 let bulletinBoardText = localStorage.getItem('capsim_bulletin_board') || "";
@@ -831,14 +831,12 @@ function initCloudListener() {
       }
       if (data.leaveRequests) {
         leaveRequests = data.leaveRequests;
-        
         leaveRequests.forEach(req => {
           if (req.date && !req.startDate) {
             req.startDate = req.date;
             req.endDate = req.date;
           }
         });
-
         localStorage.setItem('capsim_leave_requests', JSON.stringify(leaveRequests));
         renderLeaveRequests();
       }
@@ -875,9 +873,14 @@ function refreshUIAfterCloudSync() {
 
   const now = new Date();
   const currentSysMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  if (months.includes(prevMonth)) monthSelect.value = prevMonth;
-  else if (months.includes(currentSysMonth)) monthSelect.value = currentSysMonth;
-  else if (months.length > 0) monthSelect.value = months[months.length-1];
+  
+  if (months.includes(prevMonth)) {
+    monthSelect.value = prevMonth;
+  } else if (months.includes(currentSysMonth)) {
+    monthSelect.value = currentSysMonth;
+  } else if (months.length > 0) {
+    monthSelect.value = months[months.length-1];
+  }
 
   populateStaffSelect();
   buildColorPickers();
@@ -940,17 +943,11 @@ function populateStaffSelect() {
 
   let savedId = localStorage.getItem('capsim_saved_staff');
   
-  // Intelligent selection with fallback:
-  // 1. Keep currently viewed staff if they exist in this month
   if (prevStaff && staffList.some(o => o.id === prevStaff)) {
     staffSelect.value = prevStaff;
-  } 
-  // 2. Or fallback to previously saved staff if they exist in this month
-  else if (savedId && staffList.some(o => o.id === savedId)) {
+  } else if (savedId && staffList.some(o => o.id === savedId)) {
     staffSelect.value = savedId;
-  } 
-  // 3. Otherwise select the first available staff member
-  else if (staffList.length > 0) {
+  } else if (staffList.length > 0) {
     staffSelect.value = staffList[0].id;
     localStorage.setItem('capsim_saved_staff', staffList[0].id);
   }
@@ -969,7 +966,6 @@ function updateDashboard() {
   const monthRoster = rostersByMonth[monthKey];
   let staff = monthRoster.find(w => w.id === staffId);
   
-  // Auto-recovery if staff is missing
   if (!staff && monthRoster.length > 0) {
     staff = monthRoster[0];
     document.getElementById("staffSelect").value = staff.id;
@@ -1174,7 +1170,7 @@ function closeEditModal() {
   activeEditDay = null;
 }
 
-// --- SAFE HYBRID SHIFT OVERRIDE (OFFLINE & ONLINE) ---
+// --- SAFE HYBRID SHIFT OVERRIDE ---
 function saveShiftOverride() {
   if (!activeEditDay || currentRole !== 'admin') return;
   
@@ -1216,15 +1212,15 @@ function saveShiftOverride() {
       }, { merge: true })
       .then(() => {
         document.getElementById("cloudStatus").innerText = `Live Cloud Sync • Saved ${new Date().toLocaleTimeString()}`;
-        setTimeout(() => { isWritingLocally = false; }, 1000);
+        setTimeout(() => { isWritingLocally = false; }, 1500);
       })
       .catch(err => {
         document.getElementById("cloudStatus").innerText = "Saved locally (Offline mode)";
-        setTimeout(() => { isWritingLocally = false; }, 1000);
+        setTimeout(() => { isWritingLocally = false; }, 1500);
       });
     } else {
       document.getElementById("cloudStatus").innerText = "Saved locally (Offline mode)";
-      setTimeout(() => { isWritingLocally = false; }, 1000);
+      setTimeout(() => { isWritingLocally = false; }, 1500);
     }
   }
 }
@@ -1272,7 +1268,7 @@ function parseAndStoreRoster(rows) {
   }
   
   if (!detectedMonth) {
-    detectedMonth = prompt("Could not auto-detect month. Enter Month (YYYY-MM):", "2026-08");
+    detectedMonth = prompt("Could not auto-detect month. Enter Month (YYYY-MM):", "2026-10");
     if (!detectedMonth) return;
   }
 
@@ -1298,6 +1294,7 @@ function parseAndStoreRoster(rows) {
     if (!r || r.length < 3) return;
     let idCol = String(r[0] || '').trim();
     
+    // Supports any ID beginning with T (e.g., T01, T12, T105)
     if (/^T\d+$/i.test(idCol)) {
       let staffName = String(r[1] || '').trim();
       let shiftList = [];
@@ -1318,6 +1315,7 @@ function parseAndStoreRoster(rows) {
   if (parsed.length > 0) {
     isWritingLocally = true;
 
+    // Apply pre-approved leaves
     leaveRequests.forEach(req => {
       if (req.status === 'approved') {
         let [sY, sM, sD] = req.startDate.split('-').map(Number);
@@ -1343,8 +1341,10 @@ function parseAndStoreRoster(rows) {
       }
     });
 
+    // Replace the month's roster completely with the fresh parsed staff list
     rostersByMonth[detectedMonth] = parsed;
     
+    // Keep at most 3 months in memory
     let sortedKeys = Object.keys(rostersByMonth).sort();
     while (sortedKeys.length > 3) {
       delete rostersByMonth[sortedKeys.shift()];
@@ -1363,27 +1363,30 @@ function parseAndStoreRoster(rows) {
     populateStaffSelect();
     updateDashboard();
 
-    alert(`Successfully loaded ${parsed.length} staff for ${detectedMonth}! Pre-approved leaves applied automatically.`);
+    alert(`Successfully loaded ${parsed.length} staff for ${detectedMonth}! Pre-approved leaves applied.`);
 
     if (docRef) {
+      // Overwrite the rostersByMonth payload cleanly
       docRef.set({
         rostersByMonth: rostersByMonth,
         shiftMap: shiftMap,
+        shiftColors: shiftColors,
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true })
       .then(() => {
         document.getElementById("cloudStatus").innerText = `Live Cloud Sync • Uploaded ${new Date().toLocaleTimeString()}`;
-        setTimeout(() => { isWritingLocally = false; }, 2000);
+        setTimeout(() => { isWritingLocally = false; }, 3000);
       })
       .catch(err => {
-        console.log("Uploaded locally. Cloud sync message:", err.message);
-        setTimeout(() => { isWritingLocally = false; }, 2000);
+        console.error("Cloud upload error:", err);
+        document.getElementById("cloudStatus").innerText = "Saved locally (Offline mode)";
+        setTimeout(() => { isWritingLocally = false; }, 3000);
       });
     } else {
-      setTimeout(() => { isWritingLocally = false; }, 2000);
+      setTimeout(() => { isWritingLocally = false; }, 3000);
     }
   } else {
-    alert("Could not identify staff rows. Please check file structure.");
+    alert("Could not identify staff rows. Ensure Column A has staff IDs starting with T followed by digits (e.g. T01, T02).");
   }
 }
 
