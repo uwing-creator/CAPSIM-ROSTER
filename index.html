@@ -226,7 +226,6 @@
   .leave-history-item:last-child { border-bottom: none; }
   .btn-icon { background: none; border: none; font-size: 1.1rem; cursor: pointer; padding: 4px; border-radius: 4px; }
 
-  /* Day-by-day dual checklist row */
   .alarm-day-row {
     display: flex;
     align-items: center;
@@ -312,10 +311,16 @@
            <button class="btn" style="flex:1; background:#f0fdf4; color:#166534; border-color:#bbf7d0; font-weight:bold; font-size:0.85rem;" onclick="openCalendarExportModal()">📲 Export to Calendar</button>
         </div>
 
-        <!-- Admin Data Operations Row -->
-        <div style="display: none; margin-top: 10px; gap: 8px;" id="adminDataControls">
-          <button class="btn btn-danger" style="flex:1; font-size:0.8rem; font-weight:600; padding:6px;" onclick="deleteCurrentMonthRoster()">🗑️ Delete Month</button>
-          <button class="btn btn-danger" style="flex:1; font-size:0.8rem; font-weight:600; padding:6px;" onclick="resetAllRosterData()">⚠️ Reset All Data</button>
+        <!-- Admin Master Controls Row -->
+        <div style="display: none; margin-top: 10px; flex-direction: column; gap: 8px;" id="adminDataControls">
+          <div style="display: flex; gap: 8px;">
+            <button class="btn" style="flex:1; background:#fef3c7; color:#92400e; border-color:#fde68a; font-weight:bold; font-size:0.85rem;" onclick="openBatchModal()">⚡ Batch Override Shifts</button>
+            <button class="btn" style="flex:1; background:#f0fdf4; color:#166534; border-color:#86efac; font-weight:bold; font-size:0.85rem;" onclick="openMasterExportModal()">📊 Export Master Roster</button>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-danger" style="flex:1; font-size:0.8rem; font-weight:600; padding:6px;" onclick="deleteCurrentMonthRoster()">🗑️ Delete Month</button>
+            <button class="btn btn-danger" style="flex:1; font-size:0.8rem; font-weight:600; padding:6px;" onclick="resetAllRosterData()">⚠️ Reset All Data</button>
+          </div>
         </div>
       </div>
 
@@ -372,7 +377,7 @@
 
 </div>
 
-<!-- Override Modal (Admin Only) -->
+<!-- Override Modal (Admin Only - Single Day) -->
 <div id="editModal" class="modal-overlay">
   <div class="card" style="width: 100%; max-width: 320px; margin: auto;">
     <h2 style="border:none; margin-bottom: 5px;">✏️ Override Shift</h2>
@@ -383,6 +388,48 @@
     <div style="display:flex; gap:8px;">
       <button class="btn" style="flex:1;" onclick="closeEditModal()">Cancel</button>
       <button class="btn" style="flex:1; background:var(--accent); color:#fff; border-color:var(--accent);" onclick="saveShiftOverride()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Batch Override Modal (Admin Only - Multi Day & Multi Staff) -->
+<div id="batchModal" class="modal-overlay">
+  <div class="card" style="width: 100%; max-width: 360px; margin: auto;">
+    <h2 style="border:none; margin-bottom: 5px;">⚡ Batch Override Shifts</h2>
+    <p style="font-size: 0.8rem; color: #64748b; margin-top: 0; margin-bottom: 12px;">
+      Modify multiple days in <b id="batchMonthDisplay" style="color:var(--primary);"></b>
+    </p>
+
+    <label style="font-size:0.8rem; font-weight:bold; color:#475569;">Target Personnel:</label>
+    <select id="batchTargetSelect" class="btn" style="margin-top:4px; margin-bottom:10px;">
+      <option value="single">Currently Selected Staff</option>
+      <option value="all">ALL Staff Members</option>
+    </select>
+
+    <div style="display:flex; gap:8px; margin-bottom:10px;">
+      <div style="flex:1;">
+        <label style="font-size:0.8rem; font-weight:bold; color:#475569;">Start Day:</label>
+        <input type="number" id="batchStartDay" class="btn" min="1" max="31" value="1" style="margin-top:4px;">
+      </div>
+      <div style="flex:1;">
+        <label style="font-size:0.8rem; font-weight:bold; color:#475569;">End Day:</label>
+        <input type="number" id="batchEndDay" class="btn" min="1" max="31" value="5" style="margin-top:4px;">
+      </div>
+    </div>
+
+    <label style="font-size:0.8rem; font-weight:bold; color:#475569;">Apply To:</label>
+    <select id="batchDayFilter" class="btn" style="margin-top:4px; margin-bottom:10px;">
+      <option value="all">All Days in Range</option>
+      <option value="weekdays">Weekdays Only (Mon - Fri)</option>
+      <option value="weekends">Weekends Only (Sat - Sun)</option>
+    </select>
+
+    <label style="font-size:0.8rem; font-weight:bold; color:#475569;">New Shift Code (e.g. WD1, DO, SICK, AL):</label>
+    <input type="text" id="batchShiftCode" class="btn" style="margin-top:4px; margin-bottom:18px; text-transform:uppercase; font-weight:bold;" placeholder="Shift Code">
+
+    <div style="display:flex; gap:8px;">
+      <button class="btn" style="flex:1;" onclick="closeBatchModal()">Cancel</button>
+      <button class="btn" style="flex:1; background:var(--accent); color:#fff; border-color:var(--accent); font-weight:bold;" onclick="saveBatchOverride()">Apply Batch</button>
     </div>
   </div>
 </div>
@@ -460,7 +507,6 @@
       </div>
     </div>
 
-    <!-- Scrollable Duty Day Checklist with Dual Checkboxes -->
     <div id="alarmDayChecklist" style="overflow-y: auto; max-height: 240px; border: 1px solid var(--border); border-radius: 6px; padding: 6px; margin-bottom: 12px; flex-grow: 1;">
       <!-- Dynamically generated rows -->
     </div>
@@ -469,6 +515,27 @@
       <button class="btn" style="flex:1;" onclick="closeCalendarExportModal()">Cancel</button>
       <button class="btn" style="flex:1; background:var(--accent); color:#fff; border-color:var(--accent); font-weight:bold;" onclick="downloadMonthlyICS()">Download (.ics)</button>
     </div>
+  </div>
+</div>
+
+<!-- Admin Master Roster Export Modal (Excel or PDF) -->
+<div id="masterExportModal" class="modal-overlay">
+  <div class="card" style="width: 100%; max-width: 360px; margin: auto;">
+    <h2 style="border:none; margin-bottom: 5px;">📊 Export Master Roster</h2>
+    <p style="font-size: 0.82rem; color: #64748b; margin-top: 0; margin-bottom: 15px;">
+      Export complete 1–31 grid for <b id="masterExportMonthDisplay" style="color:var(--primary);"></b> with all overrides & approved leaves baked in.
+    </p>
+
+    <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px;">
+      <button class="btn" style="display:flex; align-items:center; justify-content:center; gap:8px; background:#f0fdf4; border-color:#86efac; color:#166534; padding:12px; font-weight:bold;" onclick="exportMasterRosterExcel()">
+        <span style="font-size:1.3rem;">📗</span> Download as Excel (.xlsx)
+      </button>
+      <button class="btn" style="display:flex; align-items:center; justify-content:center; gap:8px; background:#eff6ff; border-color:#93c5fd; color:#1e40af; padding:12px; font-weight:bold;" onclick="exportMasterRosterPDF()">
+        <span style="font-size:1.3rem;">📄</span> Open PDF / Print View
+      </button>
+    </div>
+
+    <button class="btn" style="width: 100%;" onclick="closeMasterExportModal()">Close</button>
   </div>
 </div>
 
@@ -926,7 +993,6 @@ function downloadMonthlyICS() {
   const alarmMinutes = parseInt(document.getElementById('icsAlarmSelect').value, 10);
   localStorage.setItem('capsim_preferred_alarm', alarmMinutes);
 
-  // Read which days are enabled for calendar and which have alarms
   const enabledCalendarDays = new Set();
   document.querySelectorAll('.export-day-checkbox').forEach(cb => {
     if (cb.checked) enabledCalendarDays.add(parseInt(cb.getAttribute('data-day'), 10));
@@ -959,7 +1025,6 @@ function downloadMonthlyICS() {
     if (isOffDuty(s)) return;
 
     let dayNumber = index + 1;
-    // Skip if user unchecked this specific day
     if (!enabledCalendarDays.has(dayNumber)) return;
 
     let dayNum = String(dayNumber).padStart(2, '0');
@@ -993,7 +1058,6 @@ function downloadMonthlyICS() {
       icsLines.push(`DESCRIPTION:Duty Shift: ${s} (${timeInfo.startH}:${timeInfo.startM} - ${timeInfo.endH}:${timeInfo.endM})${partnerDesc}`);
       icsLines.push("LOCATION:ATMD SIM Centre");
 
-      // Inject VALARM only if the alarm box for this specific day is checked
       if (enabledAlarmDays.has(dayNumber) && alarmMinutes > 0) {
         icsLines.push("BEGIN:VALARM");
         icsLines.push(`TRIGGER:-PT${alarmMinutes}M`);
@@ -1019,6 +1083,223 @@ function downloadMonthlyICS() {
   document.body.removeChild(downloadLink);
 
   closeCalendarExportModal();
+}
+
+// --- ADMIN MASTER ROSTER EXPORT (EXCEL & PDF/PRINT) ---
+function openMasterExportModal() {
+  if (currentRole !== 'admin') return;
+  const monthKey = document.getElementById("monthSelect").value;
+  if (!monthKey || !rostersByMonth[monthKey]) {
+    alert("No active month selected.");
+    return;
+  }
+  document.getElementById('masterExportMonthDisplay').innerText = monthKey;
+  document.getElementById('masterExportModal').style.display = 'flex';
+}
+
+function closeMasterExportModal() {
+  document.getElementById('masterExportModal').style.display = 'none';
+}
+
+function exportMasterRosterExcel() {
+  const monthKey = document.getElementById("monthSelect").value;
+  const staffList = rostersByMonth[monthKey];
+  if (!staffList || staffList.length === 0) return;
+
+  const [yyyy, mm] = monthKey.split("-").map(Number);
+  const totalDays = new Date(yyyy, mm, 0).getDate();
+
+  let headerRow = ["Staff ID", "Name"];
+  for (let d = 1; d <= totalDays; d++) {
+    headerRow.push(d);
+  }
+
+  let dataRows = [headerRow];
+
+  staffList.forEach(staff => {
+    let row = [staff.id, staff.name];
+    for (let d = 0; d < totalDays; d++) {
+      let shift = staff.shifts[d] || "-";
+      row.push(shift);
+    }
+    dataRows.push(row);
+  });
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(dataRows);
+
+  let colWidths = [{ wch: 10 }, { wch: 22 }];
+  for (let d = 1; d <= totalDays; d++) {
+    colWidths.push({ wch: 7 });
+  }
+  ws['!cols'] = colWidths;
+
+  XLSX.utils.book_append_sheet(wb, ws, `${monthKey} Roster`);
+  XLSX.writeFile(wb, `CAPSIM_Master_Roster_${monthKey}.xlsx`);
+
+  closeMasterExportModal();
+}
+
+function exportMasterRosterPDF() {
+  const monthKey = document.getElementById("monthSelect").value;
+  const staffList = rostersByMonth[monthKey];
+  if (!staffList || staffList.length === 0) return;
+
+  const [yyyy, mm] = monthKey.split("-").map(Number);
+  const totalDays = new Date(yyyy, mm, 0).getDate();
+
+  let printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    alert("Please allow popups to open the PDF Print View.");
+    return;
+  }
+
+  let tableHeaderHtml = `
+    <th>Staff ID</th>
+    <th>Staff Name</th>
+  `;
+  for (let d = 1; d <= totalDays; d++) {
+    let dayOfWeek = getDayName(yyyy, mm, d).substring(0, 2);
+    tableHeaderHtml += `<th>${d}<br><small style="font-weight:normal; font-size:8px;">${dayOfWeek}</small></th>`;
+  }
+
+  let tableBodyHtml = "";
+  staffList.forEach(staff => {
+    tableBodyHtml += `<tr><td><b>${staff.id}</b></td><td style="white-space:nowrap; text-align:left;">${staff.name}</td>`;
+    for (let d = 0; d < totalDays; d++) {
+      let shift = staff.shifts[d] || "-";
+      let isOff = isOffDuty(shift);
+      let bg = isOff ? "#f8fafc" : (shiftColors[shift] || "#e2e8f0");
+      tableBodyHtml += `<td style="background:${bg}; font-weight:${isOff ? 'normal' : 'bold'}; color:#0f172a;">${shift}</td>`;
+    }
+    tableBodyHtml += `</tr>`;
+  });
+
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>CAP(SIM) Master Roster - ${monthKey}</title>
+      <style>
+        @page { size: landscape; margin: 10mm; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 0; padding: 10px; color: #1e293b; }
+        h1 { font-size: 16px; margin: 0 0 4px 0; }
+        p { font-size: 11px; color: #64748b; margin: 0 0 12px 0; }
+        table { width: 100%; border-collapse: collapse; font-size: 9px; text-align: center; }
+        th, td { border: 1px solid #cbd5e1; padding: 4px 2px; }
+        th { background: #0f172a; color: #ffffff; }
+        .no-print-bar { margin-bottom: 12px; display: flex; gap: 10px; align-items: center; }
+        .btn-print { padding: 6px 14px; background: #2563eb; color: #fff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        @media print { .no-print-bar { display: none; } }
+      </style>
+    </head>
+    <body>
+      <div class="no-print-bar">
+        <button class="btn-print" onclick="window.print()">🖨️ Print / Save as PDF</button>
+        <span style="font-size:12px; color:#64748b;">(Tip: In print settings, select Destination: "Save as PDF" and Layout: "Landscape")</span>
+      </div>
+      <h1>🛫 CAP(SIM) Official Duty Roster - ${monthKey}</h1>
+      <p>Generated: ${new Date().toLocaleString()} • Cloud Verified with Manual Overrides & Approved Leaves Baked In</p>
+      <table>
+        <thead><tr>${tableHeaderHtml}</tr></thead>
+        <tbody>${tableBodyHtml}</tbody>
+      </table>
+    </body>
+    </html>
+  `);
+
+  printWindow.document.close();
+  closeMasterExportModal();
+}
+
+// --- ADMIN BATCH OVERRIDE ENGINE ---
+function openBatchModal() {
+  if (currentRole !== 'admin') return;
+  const monthKey = document.getElementById("monthSelect").value;
+  if (!monthKey || !rostersByMonth[monthKey]) {
+    alert("No active month selected.");
+    return;
+  }
+  const [yyyy, mm] = monthKey.split("-").map(Number);
+  const totalDays = new Date(yyyy, mm, 0).getDate();
+
+  document.getElementById('batchMonthDisplay').innerText = monthKey;
+  document.getElementById('batchStartDay').value = 1;
+  document.getElementById('batchStartDay').max = totalDays;
+  document.getElementById('batchEndDay').value = Math.min(5, totalDays);
+  document.getElementById('batchEndDay').max = totalDays;
+  document.getElementById('batchShiftCode').value = "";
+  document.getElementById('batchModal').style.display = 'flex';
+}
+
+function closeBatchModal() {
+  document.getElementById('batchModal').style.display = 'none';
+}
+
+function saveBatchOverride() {
+  if (currentRole !== 'admin') return;
+  const monthKey = document.getElementById("monthSelect").value;
+  const staffList = rostersByMonth[monthKey];
+  if (!staffList || staffList.length === 0) return;
+
+  const [yyyy, mm] = monthKey.split("-").map(Number);
+  const totalDays = new Date(yyyy, mm, 0).getDate();
+
+  const startDay = parseInt(document.getElementById('batchStartDay').value, 10);
+  const endDay = parseInt(document.getElementById('batchEndDay').value, 10);
+  const newShift = document.getElementById('batchShiftCode').value.trim().toUpperCase();
+  const targetScope = document.getElementById('batchTargetSelect').value;
+  const dayFilter = document.getElementById('batchDayFilter').value;
+
+  if (isNaN(startDay) || isNaN(endDay) || startDay < 1 || endDay > totalDays || startDay > endDay) {
+    alert(`Please enter a valid day range between 1 and ${totalDays}.`);
+    return;
+  }
+
+  if (!newShift) {
+    alert("Please enter a Shift Code (e.g. WD1, DO, SICK, AL).");
+    return;
+  }
+
+  let targets = [];
+  if (targetScope === 'single') {
+    const selectedId = document.getElementById("staffSelect").value;
+    const staff = staffList.find(w => w.id === selectedId);
+    if (staff) targets.push(staff);
+  } else {
+    targets = staffList;
+  }
+
+  if (targets.length === 0) {
+    alert("No matching staff found.");
+    return;
+  }
+
+  let appliedCount = 0;
+  targets.forEach(member => {
+    for (let day = startDay; day <= endDay; day++) {
+      let dayOfWeek = new Date(yyyy, mm - 1, day).getDay(); // 0: Sun, 6: Sat
+      let isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+
+      if (dayFilter === 'weekdays' && isWeekend) continue;
+      if (dayFilter === 'weekends' && !isWeekend) continue;
+
+      member.shifts[day - 1] = newShift;
+      appliedCount++;
+    }
+  });
+
+  closeBatchModal();
+  updateDashboard();
+
+  docRef.update({
+    rostersByMonth: rostersByMonth,
+    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(() => {
+    alert(`Batch override complete! Updated ${appliedCount} shift assignments.`);
+  }).catch(err => {
+    alert(`Failed to save batch overrides: ${err.message}`);
+  });
 }
 
 // --- ADMIN DATA CONTROLS (DELETE ACTIONS) ---
