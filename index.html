@@ -153,7 +153,6 @@
     width: 100%;
   }
   
-  /* Flexible Calendar Grid for all mobile widths */
   .calendar-grid { 
     display: grid; 
     grid-template-columns: repeat(7, 1fr); 
@@ -227,7 +226,6 @@
   .leave-history-item:last-child { border-bottom: none; }
   .btn-icon { background: none; border: none; font-size: 1.1rem; cursor: pointer; padding: 4px; border-radius: 4px; }
 
-  /* Mobile Layout Enhancements */
   @media (max-width: 768px) {
     body { padding: 8px; }
     .dashboard-layout { grid-template-columns: 1fr !important; gap: 12px; }
@@ -293,9 +291,10 @@
           <select id="monthSelect" class="btn" onchange="handleMonthChange()"></select>
         </div>
         
-        <!-- Staff Action -->
-        <div style="display: flex; margin-top: 8px;" id="staffActionRow">
-           <button class="btn" style="flex:1; background:#e0f2fe; color:#1e40af; border-color:#bae6fd; font-weight:bold;" onclick="openLeaveModal()">📅 Request Leave</button>
+        <!-- Staff Action Buttons (Leave Request & .ICS Export) -->
+        <div style="display: flex; gap: 8px; margin-top: 8px;" id="staffActionRow">
+           <button class="btn" style="flex:1; background:#e0f2fe; color:#1e40af; border-color:#bae6fd; font-weight:bold; font-size:0.85rem;" onclick="openLeaveModal()">📅 Request Leave</button>
+           <button class="btn" style="flex:1; background:#f0fdf4; color:#166534; border-color:#bbf7d0; font-weight:bold; font-size:0.85rem;" onclick="openCalendarExportModal()">📲 Export to Calendar</button>
         </div>
 
         <!-- Admin Data Operations Row -->
@@ -414,6 +413,28 @@
     <div style="display:flex; gap:8px; margin-top: 12px;">
       <button class="btn" style="flex:1;" onclick="closeEmailDraftModal()">Close</button>
       <button id="copyDraftBtn" class="btn" style="flex:1; background:var(--accent); color:#fff; border-color:var(--accent);" onclick="copyEmailDraft()">Copy to Clipboard</button>
+    </div>
+  </div>
+</div>
+
+<!-- Calendar (.ICS) Export Modal with Smart VALARM selector -->
+<div id="calendarExportModal" class="modal-overlay">
+  <div class="card" style="width: 100%; max-width: 340px; margin: auto;">
+    <h2 style="border:none; margin-bottom: 5px;">📲 Sync to Phone Calendar</h2>
+    <p style="font-size: 0.8rem; color: #64748b; margin-top: 0; margin-bottom: 14px;">Generate an Apple / Google Calendar (.ics) file for <b id="exportStaffDisplay" style="color:var(--primary);"></b>.</p>
+    
+    <label style="font-size:0.8rem; font-weight:bold; color:#475569;">⏰ Pre-Shift Alarm Reminder (VALARM):</label>
+    <select id="icsAlarmSelect" class="btn" style="margin-top:6px; margin-bottom:18px;">
+      <option value="0">No Alarm</option>
+      <option value="30">30 minutes before report time</option>
+      <option value="60">60 minutes (1 hr) before</option>
+      <option value="90" selected>90 minutes before (Default)</option>
+      <option value="120">120 minutes (2 hrs) before</option>
+    </select>
+    
+    <div style="display:flex; gap:8px;">
+      <button class="btn" style="flex:1;" onclick="closeCalendarExportModal()">Cancel</button>
+      <button class="btn" style="flex:1; background:var(--accent); color:#fff; border-color:var(--accent); font-weight:bold;" onclick="downloadMonthlyICS()">Download (.ics)</button>
     </div>
   </div>
 </div>
@@ -727,6 +748,142 @@ function updateDashboard() {
     renderNextShiftBox(staff.id, now);
     renderStaffLeaveBox(staff.id);
   }
+}
+
+// --- CALENDAR EXPORT MODAL & .ICS GENERATOR ---
+function openCalendarExportModal() {
+  const staffSelect = document.getElementById("staffSelect");
+  if (!staffSelect || !staffSelect.value) return;
+  document.getElementById('exportStaffDisplay').innerText = staffSelect.options[staffSelect.selectedIndex].text;
+  
+  let savedAlarm = localStorage.getItem('capsim_preferred_alarm');
+  if (savedAlarm !== null) {
+    document.getElementById('icsAlarmSelect').value = savedAlarm;
+  }
+  
+  document.getElementById('calendarExportModal').style.display = 'flex';
+}
+
+function closeCalendarExportModal() {
+  document.getElementById('calendarExportModal').style.display = 'none';
+}
+
+function parseShiftTimes(shiftCode) {
+  let s = (shiftCode || "").trim().toUpperCase();
+  if (isOffDuty(s)) return null;
+
+  let desc = shiftMap[s] || "";
+  let timeMatch = desc.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
+  
+  if (timeMatch) {
+    return {
+      startH: String(timeMatch[1]).padStart(2, '0'),
+      startM: String(timeMatch[2]).padStart(2, '0'),
+      endH: String(timeMatch[3]).padStart(2, '0'),
+      endM: String(timeMatch[4]).padStart(2, '0'),
+      isAllDay: false
+    };
+  }
+
+  if (s === "AL" || s === "SICK") {
+    return { isAllDay: true };
+  }
+
+  // Default fallbacks for special duty / training
+  return {
+    startH: "08",
+    startM: "30",
+    endH: "17",
+    endM: "18",
+    isAllDay: false
+  };
+}
+
+function downloadMonthlyICS() {
+  const monthKey = document.getElementById("monthSelect").value;
+  const staffId = document.getElementById("staffSelect").value;
+  if (!monthKey || !staffId || !rostersByMonth[monthKey]) return;
+
+  const monthRoster = rostersByMonth[monthKey];
+  const staff = monthRoster.find(w => w.id === staffId);
+  if (!staff) return;
+
+  const alarmMinutes = parseInt(document.getElementById('icsAlarmSelect').value, 10);
+  localStorage.setItem('capsim_preferred_alarm', alarmMinutes);
+
+  const [yyyy, mm] = monthKey.split("-");
+  const nowStamp = new Date().toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+  
+  let icsLines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//CAPSIM Roster System//EN",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    `X-WR-CALNAME:CAP(SIM) - ${staff.name} (${monthKey})`
+  ];
+
+  staff.shifts.forEach((shift, index) => {
+    let s = (shift || "").trim().toUpperCase();
+    if (isOffDuty(s)) return;
+
+    let dayNum = String(index + 1).padStart(2, '0');
+    let dateStr = `${yyyy}${mm}${dayNum}`;
+    let timeInfo = parseShiftTimes(s);
+    if (!timeInfo) return;
+
+    // Check colleagues working on the same day
+    let colleagueNames = [];
+    if (!timeInfo.isAllDay) {
+      let colleagues = monthRoster.filter(w => w.id !== staff.id && (w.shifts[index] || "").trim().toUpperCase() === s);
+      colleagueNames = colleagues.map(c => c.name);
+    }
+    let partnerDesc = colleagueNames.length > 0 ? `\\nWorking with: ${colleagueNames.join(", ")}` : "";
+
+    let eventUID = `${dateStr}-${s}-${staff.id}@cad.gov.hk`;
+
+    icsLines.push("BEGIN:VEVENT");
+    icsLines.push(`UID:${eventUID}`);
+    icsLines.push(`DTSTAMP:${nowStamp}`);
+
+    if (timeInfo.isAllDay) {
+      let nextDayNum = String(index + 2).padStart(2, '0');
+      icsLines.push(`DTSTART;VALUE=DATE:${dateStr}`);
+      icsLines.push(`DTEND;VALUE=DATE:${yyyy}${mm}${nextDayNum}`);
+      icsLines.push(`SUMMARY:CAP(SIM) ${s === 'AL' ? 'Annual Leave (AL)' : 'Sick Leave'}`);
+      icsLines.push(`DESCRIPTION:${s} recorded in CAP(SIM) roster system.`);
+    } else {
+      icsLines.push(`DTSTART:${dateStr}T${timeInfo.startH}${timeInfo.startM}00`);
+      icsLines.push(`DTEND:${dateStr}T${timeInfo.endH}${timeInfo.endM}00`);
+      icsLines.push(`SUMMARY:Duty: ${s}`);
+      icsLines.push(`DESCRIPTION:Duty Shift: ${s} (${timeInfo.startH}:${timeInfo.startM} - ${timeInfo.endH}:${timeInfo.endM})${partnerDesc}`);
+      icsLines.push("LOCATION:ATMD SIM Centre");
+
+      if (alarmMinutes > 0) {
+        icsLines.push("BEGIN:VALARM");
+        icsLines.push(`TRIGGER:-PT${alarmMinutes}M`);
+        icsLines.push("ACTION:DISPLAY");
+        icsLines.push(`DESCRIPTION:Reminder: Duty ${s} starts in ${alarmMinutes} minutes`);
+        icsLines.push("END:VALARM");
+      }
+    }
+
+    icsLines.push("STATUS:CONFIRMED");
+    icsLines.push("END:VEVENT");
+  });
+
+  icsLines.push("END:VCALENDAR");
+
+  const icsData = icsLines.join("\r\n");
+  const blob = new Blob([icsData], { type: "text/calendar;charset=utf-8" });
+  const downloadLink = document.createElement("a");
+  downloadLink.href = URL.createObjectURL(blob);
+  downloadLink.download = `CAPSIM_${staff.id}_${monthKey}.ics`;
+  document.body.appendChild(downloadLink);
+  downloadLink.click();
+  document.body.removeChild(downloadLink);
+
+  closeCalendarExportModal();
 }
 
 // --- ADMIN DATA CONTROLS (DELETE ACTIONS) ---
