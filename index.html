@@ -125,7 +125,7 @@
       <div class="card" style="padding-bottom: 15px;">
         <h2 style="border:none; margin-bottom: 10px; padding:0;">👤 Select Staff Member & Month</h2>
         <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
-          <select id="staffSelect" class="btn" onchange="updateDashboard()"></select>
+          <select id="staffSelect" class="btn" onchange="handleStaffChange()"></select>
           <select id="monthSelect" class="btn" onchange="handleMonthChange()"></select>
         </div>
         
@@ -292,6 +292,30 @@ let shiftMap = {
 const DEFAULT_COLORS = { "WD": "#86efac", "WD1": "#93c5fd", "WD2": "#86efac", "CA": "#fde047", "DO": "#cbd5e1", "OFF": "#cbd5e1", "SICK": "#fca5a5", "AL": "#fbcfe8", "UT": "#f472b6", "TU": "#fcd34d", "WDP": "#c084fc" };
 let shiftColors = { ...DEFAULT_COLORS };
 
+// --- USER-SPECIFIC LOCAL PREFERENCE FUNCTIONS ---
+function getCurrentStaffId() {
+  return document.getElementById("staffSelect")?.value || localStorage.getItem('capsim_last_selected_staff') || "default_user";
+}
+
+function loadStaffColors() {
+  const staffId = getCurrentStaffId();
+  const saved = localStorage.getItem(`capsim_colors_${staffId}`);
+  if (saved) {
+    try {
+      shiftColors = { ...DEFAULT_COLORS, ...JSON.parse(saved) };
+    } catch(e) {
+      shiftColors = { ...DEFAULT_COLORS };
+    }
+  } else {
+    shiftColors = { ...DEFAULT_COLORS };
+  }
+}
+
+function saveStaffColors() {
+  const staffId = getCurrentStaffId();
+  localStorage.setItem(`capsim_colors_${staffId}`, JSON.stringify(shiftColors));
+}
+
 function handleGateLogin() {
   const entered = document.getElementById('gatePasscode').value.trim();
   if (entered === ADMIN_PASSCODE) {
@@ -398,7 +422,7 @@ function syncRoleUI() {
   }
 }
 
-// --- CLOUD FIRESTORE ENGINE (NO OFFLINE CACHE CONFUSION) ---
+// --- CLOUD FIRESTORE ENGINE ---
 function initCloudListener() {
   docRef.onSnapshot((doc) => {
     if (isUploadingRoster) return;
@@ -407,7 +431,6 @@ function initCloudListener() {
       const data = doc.data();
       rostersByMonth = data.rostersByMonth || {};
       shiftMap = { ...shiftMap, ...(data.shiftMap || {}) };
-      shiftColors = { ...DEFAULT_COLORS, ...(data.shiftColors || {}) };
       bulletinBoardText = data.generalNotes || "";
       leaveRequests = data.leaveRequests || [];
       
@@ -452,12 +475,25 @@ function refreshUIAfterCloudSync() {
   }
 
   populateStaffSelect();
+  loadStaffColors();
   buildColorPickers();
   updateDashboard();
 }
 
 function handleMonthChange() {
   populateStaffSelect();
+  loadStaffColors();
+  buildColorPickers();
+  updateDashboard();
+}
+
+function handleStaffChange() {
+  const staffId = document.getElementById("staffSelect")?.value;
+  if (staffId) {
+    localStorage.setItem('capsim_last_selected_staff', staffId);
+  }
+  loadStaffColors();
+  buildColorPickers();
   updateDashboard();
 }
 
@@ -466,7 +502,8 @@ function populateStaffSelect() {
   const monthKey = document.getElementById("monthSelect").value;
   if (!monthKey || !rostersByMonth[monthKey]) return;
 
-  const prevStaff = staffSelect.value;
+  const currentSelection = staffSelect.value;
+  const lastRemembered = localStorage.getItem('capsim_last_selected_staff');
   staffSelect.innerHTML = "";
   
   const staffList = rostersByMonth[monthKey];
@@ -477,10 +514,19 @@ function populateStaffSelect() {
     staffSelect.appendChild(opt);
   });
 
-  if (prevStaff && staffList.some(o => o.id === prevStaff)) {
-    staffSelect.value = prevStaff;
-  } else if (staffList.length > 0) {
+  // Priority order for retaining worker selection:
+  // 1. Currently active selection in the DOM (if still valid)
+  if (currentSelection && staffList.some(o => o.id === currentSelection)) {
+    staffSelect.value = currentSelection;
+  } 
+  // 2. Previously remembered worker from localStorage before browser closed
+  else if (lastRemembered && staffList.some(o => o.id === lastRemembered)) {
+    staffSelect.value = lastRemembered;
+  } 
+  // 3. Fallback to first available staff member
+  else if (staffList.length > 0) {
     staffSelect.value = staffList[0].id;
+    localStorage.setItem('capsim_last_selected_staff', staffList[0].id);
   }
 }
 
@@ -493,7 +539,10 @@ function updateDashboard() {
   let staff = monthRoster.find(w => w.id === staffId);
   if (!staff) {
     staff = monthRoster[0];
-    if (staff) document.getElementById("staffSelect").value = staff.id;
+    if (staff) {
+      document.getElementById("staffSelect").value = staff.id;
+      localStorage.setItem('capsim_last_selected_staff', staff.id);
+    }
   }
   if (!staff) return;
 
@@ -550,7 +599,6 @@ function resetAllRosterData() {
     leaveRequests: [],
     generalNotes: bulletinBoardText,
     shiftMap: shiftMap,
-    shiftColors: shiftColors,
     lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
   }).then(() => {
     alert("All roster data wiped successfully. You can now perform a clean upload.");
@@ -560,7 +608,7 @@ function resetAllRosterData() {
   });
 }
 
-// --- FILE UPLOADER WITH DIRECT CLOUD WRITE ---
+// --- FILE UPLOADER ---
 function setupFileUploadListener() {
   const fileInput = document.getElementById('fileInput');
   if (!fileInput) return;
@@ -639,7 +687,6 @@ function parseAndStoreRoster(rows) {
 
   isUploadingRoster = true;
 
-  // Apply pre-approved leaves
   leaveRequests.forEach(req => {
     if (req.status === 'approved') {
       let [sY, sM, sD] = req.startDate.split('-').map(Number);
@@ -666,7 +713,6 @@ function parseAndStoreRoster(rows) {
   docRef.set({
     rostersByMonth: rostersByMonth,
     shiftMap: shiftMap,
-    shiftColors: shiftColors,
     lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
   }, { merge: true })
   .then(() => {
@@ -821,6 +867,15 @@ function renderNextShiftBox(staffId, fromDate) {
       <div class="info-badge-wrap">${getBadgeHtml(nextShiftData.s)}</div>
       <div class="info-time">${getTime(nextShiftData.s)}</div>
     `;
+
+    let targetRoster = rostersByMonth[nextShiftData.monthKey];
+    if (targetRoster) {
+      let colleagues = targetRoster.filter(w => w.id !== staffId && (w.shifts[nextShiftData.d - 1] || "").trim().toUpperCase() === nextShiftData.s);
+      if (colleagues.length > 0) {
+        let names = colleagues.map(c => `<b>${c.name}</b>`).join(", ");
+        html += `<div class="colleagues">👥 <b>Working With:</b><br>${names}</div>`;
+      }
+    }
     box.innerHTML = html;
   } else {
     box.innerHTML = `<div class="info-date" style="margin-top:20px;">End of Roster</div><div style="color:#94a3b8; font-style:italic;">No future duties found.</div>`;
@@ -1071,6 +1126,7 @@ function updateNotesUI() {
   box.style.backgroundColor = isEditingNotes ? "#ffffff" : "#f8fafc";
 }
 
+// --- USER-SPECIFIC COLOR PICKERS ---
 function buildColorPickers() {
   const container = document.getElementById("colorPickerContainer");
   container.innerHTML = "";
@@ -1088,13 +1144,14 @@ function buildColorPickers() {
 
 function updateColor(code, val) {
   shiftColors[code] = val;
-  docRef.update({ shiftColors: shiftColors });
+  saveStaffColors();
   updateDashboard();
 }
 
 function resetColors() {
   shiftColors = { ...DEFAULT_COLORS };
-  docRef.update({ shiftColors: shiftColors });
+  const staffId = getCurrentStaffId();
+  localStorage.removeItem(`capsim_colors_${staffId}`);
   buildColorPickers();
   updateDashboard();
 }
